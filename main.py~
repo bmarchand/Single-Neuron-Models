@@ -1,0 +1,9 @@
+
+class 2LNeuron:
+
+	def __init__(self,dt=0.025,N=10)
+
+		self.dt = dt
+		self.N = N
+
+		
