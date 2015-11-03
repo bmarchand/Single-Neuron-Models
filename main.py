@@ -1,43 +1,50 @@
-import functions
+import functions as fun
+import numpy as np
+import matplotlib.pylab as plt
 
 class Synapses:
 
-	tau_r_in = 3.
-	tau_d_in = 50.
+	tr_in = 3.
+	td_in = 80.
 
-	tau_r_exc = 1.
-	tau_d_exc = 20.
-
-	def __init__(self,N,total_time,dt,length_kernels):
-
-		self.kernels = np.zeros((N,int(length_kernels/dt)),dtype=float)
-
-		for i in range(N):
-
-			if i<(N/2):
-
-				self.kernels[:,i] = functions.alpha_function(self.tau_r_exc,self.tau_d_exc)
-
-			else:
-		
-				self.kernels[:,i] = -functions.alpha_function(self.tau_r_in,self.tau_d_in)
+	tr_exc = 1.
+	td_exc = 20.
 	
-			
+	N = 10
 
-class 2LNeuron:
-	"""
-	LN-LN model. 
-
-	"""
-
-	def __init__(self,dt=0.025,N=10,total_time=60000.,length_kernels=200.)
+	def __init__(self,dt=0.025,len_ker=200.):
 
 		self.dt = dt
-		self.N = N
-		self.total_time = total_time
-		self.length_kernels = length_kernels
+		self.len_ker = len_ker
+		self.ker = np.zeros((self.N,int(len_ker/dt)),dtype=float)
 		
-		self.synapses = Synapses(self.N,self.total_time,self.dt,self.length_kernels)
 
-	def run
+		for i in range(self.N):
+
+			if i<(self.N/2):
+
+				exc_ker = fun.alpha_fun(fun.jitter(self.tr_exc),fun.jitter(self.td_exc))
+
+				self.ker[i,:] = fun.jitter(1.)*exc_ker
+
+			else:
+
+				inh_ker = fun.alpha_fun(fun.jitter(self.tr_in),fun.jitter(self.td_in))
 		
+				self.ker[i,:] = -fun.jitter(1.)*inh_ker
+
+	def plot(self):
+
+		for i in range(self.N):
+
+			plt.plot(self.ker[i,:])
+		
+		plt.show()
+
+class TwoLayerNeuron(Synapses):
+
+	def __init__(self,):
+		
+		self.synapses = Synapses()
+
+	

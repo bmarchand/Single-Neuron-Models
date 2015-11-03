@@ -1,8 +1,9 @@
 import math
 import numpy as np
 import matplotlib.pylab as plt
+import random
 
-def alpha_function(tau_r,tau_d,dt=0.025,L=100.,control='off'):
+def alpha_fun(tau_r,tau_d,dt=0.025,L=200.,control='off'):
 
 	x = np.arange(int(L/dt))
 
@@ -18,3 +19,7 @@ def alpha_function(tau_r,tau_d,dt=0.025,L=100.,control='off'):
 		plt.show()
 
 	return y
+
+def jitter(r,per=0.1):
+
+	return r*(1+per*2*(random.random()-0.5))
