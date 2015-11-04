@@ -1,6 +1,7 @@
 import functions as fun
 import numpy as np
 import matplotlib.pylab as plt
+import mechanisms as mech
 
 class Synapses:
 
@@ -12,26 +13,26 @@ class Synapses:
 	
 	N = 10
 
-	def __init__(self,dt=0.025,len_ker=200.):
+	def __init__(self,size,dt=0.025,len_ker=200.):
 
 		self.dt = dt
 		self.len_ker = len_ker
+		self.len_ker_st = int(len_ker/dt)
 		self.ker = np.zeros((self.N,int(len_ker/dt)),dtype=float)
-		
-
+		 
 		for i in range(self.N):
 
 			if i<(self.N/2):
 
 				exc_ker = fun.alpha_fun(fun.jitter(self.tr_exc),fun.jitter(self.td_exc),self.dt,self.len_ker)
 
-				self.ker[i,:] = fun.jitter(1.)*exc_ker
+				self.ker[i,:] = fun.jitter(size)*exc_ker
 
 			else:
 
 				inh_ker = fun.alpha_fun(fun.jitter(self.tr_in),fun.jitter(self.td_in),self.dt,self.len_ker)
 		
-				self.ker[i,:] = -fun.jitter(1.)*inh_ker
+				self.ker[i,:] = -fun.jitter(size)*inh_ker
 
 	def plot(self):
 
@@ -41,28 +42,54 @@ class Synapses:
 		
 		plt.show()
 
+class SpikingMechanism:
 
-class TwoLayerNeuron(Synapses):
+	dt = 0.025
+	compartments = 2
+	non_linearity = [[1.,1.,1.],[1.,1.,1.]]
+	threshold = 30.
+	PSP_size = 5.
+	ASP_size = 20.
+	ASP_time = 200.
+	ASP_total = 1000.
+	ASP_total_st = ASP_total/dt
+	delta_v = 5.
+	lambda0 = 0.1
 
-	def __init__(self,total_time=60000.,rate=10.):
-		
-		self.synapses = Synapses()
-		self.total_time = 60000.
-		self.input = []
-		self.rate = rate
-		self.dt = self.synapses.dt
+class RunParameters:
+
+	total_time = 60000.
+	in_rate = 10.
+	dt = 0.025
+
+class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters):
+
+	def __init__(self):
+
+		self.synapses = Synapses(self.PSP_size)
+		self.add_input()
 
 	def add_input(self):
+	
+		self.input = []
 
 		for i in range(self.N):
 
-			SpikeTrain = fun.spike_train(fun.jitter(self.rate),self.total_time)
+			SpikeTrain = fun.spike_train(fun.jitter(self.in_rate),self.total_time,self.dt)
 
 			self.input.append(SpikeTrain)
 
 	def run(self):
 
-		self.output = []
+		self.output,self.membrane_potential = mech.SpikeGeneration(self)
+	
+		self.output_rate = len(self.output)/(0.001*self.total_time)
+
+	def plot(self):
+
+		plt.plot(np.arange(int(self.total_time/self.dt)),self.membrane_potential)
+		plt.show()
+		
 
 		
 		
