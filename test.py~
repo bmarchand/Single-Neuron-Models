@@ -1,17 +1,10 @@
-class Complex:
+reload(mechanisms)
+reload(functions)
 
-	f = 0.
-	g = 1.
+execfile('main.py')
 
-	def __init__(self,real=1.,imag=2.):
+neuron = TwoLayerNeuron()
 
-		self.r = real
-		self.i = imag
-
-class deuxieme(Complex):
-
-	def multiply(self):
-
-		self.r = 2*self.r
+neuron.run()
 
 

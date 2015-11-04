@@ -1,21 +1,13 @@
-class Complex:
+import mechanisms
+import functions
 
-	f = 0.
-	g = 1.
+reload(mechanisms)
+reload(functions)
 
-	def __init__(self,real=1.,imag=2.):
+execfile('main.py')
 
-		self.r = real
-		self.i = imag
+neuron = TwoLayerNeuron()
 
-	def prin(self):
-
-		print self.r
-
-class deuxieme(Complex):
-
-	def multiply(self):
-
-		self.r = 2*self.r
+neuron.run()
 
 

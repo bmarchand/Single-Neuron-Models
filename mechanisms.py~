@@ -1,6 +1,7 @@
 import numpy as np
 import functions as fun
 import random
+import matplotlib.pylab as plt
 
 def SpikeGeneration(neuron):
 
@@ -26,7 +27,24 @@ def SpikeGeneration(neuron):
 
 				MP_part[t:min(t+neuron.synapses.len_ker_st,Nsteps)] = MP_part[t:min(t+neuron.synapses.len_ker_st,Nsteps)] + neuron.PSP_size*neuron.synapses.ker[int(g*nsyn+cnt),:min(neuron.synapses.len_ker_st,Nsteps-t)]
 
+		h = np.histogram(MP_part,bins=3000)
+		hpost = np.histogram(fun.sigmoid(neuron.non_linearity[g],MP_part),bins=3000)
+
+		print h,hpost
+
+		plt.plot(h[1][:-1],h[0])	
+
+		plt.plot(hpost[1][:-1],hpost[0])
+
 		MP = MP + fun.sigmoid(neuron.non_linearity[g],MP_part)
+
+		plt.show()
+
+		x = np.arange(-80.,80.,1.)
+
+		plt.plot(x,fun.sigmoid(neuron.non_linearity[g],x))
+		plt.plot(x,x)
+		plt.show()
 
 	for t in range(Nsteps):
 

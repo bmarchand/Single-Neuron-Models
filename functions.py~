@@ -56,7 +56,9 @@ def spike_train(rate,total_time,dt):
 
 	return train
 		
-def sigmoid(a,b,c,x):
+def sigmoid(l,x):
 
-	return a/(b+np.exp(-c*x))	
+	y = 0.5(l[0]/(l[1]+np.exp(-l[2]*x)) - l[0]/(l[1]+np.exp(l[2]*x)))
+
+	return y
 
