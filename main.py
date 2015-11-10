@@ -112,6 +112,8 @@ class FitParameters:
 	
 	N_knots = 10.
 
+	Tol = 10**-6
+
 class TwoLayerModel(FitParameters,RunParameters):
 
 	def __init__(self):
@@ -119,10 +121,14 @@ class TwoLayerModel(FitParameters,RunParameters):
 		self.basisNL = fun.NaturalSpline(range(-60,70,13),[-100.,100.])
 		self.paramNL = fun.SplineParamsforId(range(-60,70,13))
 
-		self.basisKer = fun.CosineBasis(self.N_cos_bumps,1.8,0.,self.len_cos_bumps,self.dt)
-		self.basisASP = fun.NaturalSpline(range(int(100./self.dt),int(500./self.dt),100),[0,500./self.dt])
-		self.paramKer = np.zeros(int(self.N*self.N_cos_bumps+self.N_knots_ASP+1.))
-		
+		self.basisKer = fun.CosineBasis(self.N_cos_bumps,self.len_cos_bumps,self.dt)
+
+		knots_ASP = range(int(100./self.dt),int(500./self.dt),100)
+		bnds_ASP = [0,500./self.dt]
+
+		self.basisASP = fun.NaturalSpline(knots_ASP,bnds_ASP)
+
+		self.paramKer = np.zeros(int(self.N*self.N_cos_bumps+self.N_knots_ASP+1.)) 
 
 	def add_data(self,neuron):
 		
@@ -132,9 +138,9 @@ class TwoLayerModel(FitParameters,RunParameters):
 
 	def fit(self):
 
-		self.paramNL,self.paramKer = Optim(self)
+		self.paramNL,self.paramKer,self.likelihood = optim.BlockCoordinateAscent(self)
 
-	def plot(self)
+	def plot(self):
 	
 	
 	

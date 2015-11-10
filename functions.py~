@@ -119,6 +119,8 @@ def SplineParamsforId(knots,bnds):
 	v = np.arange(bnds[0],bnds[1],dv)
 
 	params = np.dot(np.linalg.inv(np.dot(F.transpose(),F)),np.dot(F.transpose(),v))
+
+	return params
 	
 
 

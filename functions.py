@@ -63,7 +63,7 @@ def sigmoid(l,x):
 	return y
 
 
-def CosineBasis(K,a,c,T,dt):
+def CosineBasis(K,a=1.8,c=0.,T,dt):
 
     F = np.zeros((T/dt,K),dtype='float')
 
