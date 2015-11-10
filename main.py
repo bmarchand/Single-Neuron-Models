@@ -118,7 +118,11 @@ class TwoLayerModel(FitParameters,RunParameters):
 
 	def __init__(self):
 
-		self.basisNL = fun.NaturalSpline(range(-60,70,13),[-100.,100.])
+		knots = range(-60,70,13)
+
+		bnds = [-100.,100.]
+
+		self.basisNL = fun.NaturalSpline(knots,bdns)
 		self.paramNL = fun.SplineParamsforId(range(-60,70,13))
 
 		self.basisKer = fun.CosineBasis(self.N_cos_bumps,self.len_cos_bumps,self.dt)

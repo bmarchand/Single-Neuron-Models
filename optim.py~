@@ -6,6 +6,10 @@ class State(Model):
 
 	def iter_ker(self):
 
+		gradient_ker = np.zeros(np.shape(self.gradient),dtype='float')
+
+		gradient_ker[:self.N_param_ker]
+
 		self.paramKer = self.paramKer - np.dot(np.linalg.inv(self.hessian_ker),self.gradient_ker)
 
 	def iter_NL(self):

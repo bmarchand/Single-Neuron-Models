@@ -20,9 +20,11 @@ class State(Model):
 
 		self.membrane_potential = membrane_potential(self)
 
-		self.likelihood = optim.likelihood(self)
-		self.gradient = optim.gradient(self)
-		self.hessian = optim.hessian(self)
+		self.likelihood = diff_calc.likelihood(self)
+		self.gradient_ker = diff_calc.gradient_ker(self)
+		self.hessian_ker = diff_calc.hessian_ker(self)
+
+		
 
 def BlockCoordinateAscent(Model):
 

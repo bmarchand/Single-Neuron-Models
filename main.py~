@@ -136,17 +136,11 @@ class TwoLayerModel(FitParameters,RunParameters):
 		self.output = neuron.output
 		self.paramKer[-1] = -math.log(0.001*neuron.output_rate)
 
-	def diff_calc(self):
-
-		self.likelihood = optim.likelihood(self)
-		self.gradient = optim.gradient(self)
-		self.hessian = optim.hessian(self)
-
 	def fit(self):
 
-		self.paramNL,self.paramKer = optim.BlockCoordinateAscent(self)
+		self.paramNL,self.paramKer,self.likelihood = optim.BlockCoordinateAscent(self)
 
-	def plot(self)
+	def plot(self):
 	
 	
 	
