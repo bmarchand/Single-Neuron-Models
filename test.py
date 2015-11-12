@@ -13,7 +13,10 @@ neuron = TwoLayerNeuron()
 
 neuron.run()
 
-print "output: ",neuron.output_rate," Hz"
-print "run time: ",time.time()-t0, " sec."
+model = TwoLayerModel()
 
+model.add_data(neuron)
 
+model.fit()
+
+model.plot()
