@@ -12,7 +12,7 @@ class Synapses:
 
 	tr_exc = 1.
 	td_exc = 20.
-	
+	 
 	N = 12
 
 	def __init__(self,size,dt=0.025,len_ker=200.):
@@ -123,6 +123,7 @@ class TwoLayerModel(FitParameters,RunParameters):
 		bnds = [-100.,100.]
 
 		self.basisNL = fun.NaturalSpline(knots,bdns)
+		self.basisNLder = fun.DerNaturalSpline(knots,bnds)
 		self.paramNL = fun.SplineParamsforId(range(-60,70,13))
 
 		self.basisKer = fun.CosineBasis(self.N_cos_bumps,self.len_cos_bumps,self.dt)
