@@ -1,32 +1,42 @@
 import numpy as np
 import functions as fun
 from scipy import signal
+import diff_calc as diff
 
-class State(Model):
+class State()
 
-	def iter_ker(self):
+	def __init__(self,Model):
 
-		gradient_ker = np.zeros(np.shape(self.gradient),dtype='float')
+		gradient_ker = diff.gradient_ker(Model)
+		gradient_nl = diff.gradient_NL(Model)
 
-		gradient_ker[:self.N_param_ker]
+		hessian_ker = diff.hessian_ker(Model)
+		hessian_nl = diff.hessian_NL(Model)
+
+		self.paramKer = Model.paramKer
+		self.paramNL = Model.paramNL
+
+		self.likelihood = diff.likelihood(Model)
+
+	def iter_ker(self,Model):
 
 		self.paramKer = self.paramKer - np.dot(np.linalg.inv(self.hessian_ker),self.gradient_ker)
 
 	def iter_NL(self):
 
-		self.paramNL = self.paramNL - np.dot(np.linalg.inv(hessian),self.gradient_NL)
+		self.paramNL = self.paramNL - np.dot(np.linalg.inv(hessian_nl),self.gradient_NL)
 
 	def update(self,Model):
 
-		self.membrane_potential = membrane_potential(self)
+		self.membrane_potential = membrane_potential(Model)
 
-		self.likelihood = diff_calc.likelihood(self)
-		self.gradient_ker = diff_calc.gradient_ker(self)
-		self.hessian_ker = diff_calc.hessian_ker(self)
+		self.likelihood = diff.likelihood(Model)
+		
+		self.gradient_ker = diff.gradient_ker(Model)
+		self.hessian_ker = diff.hessian_ker(Model)
 
-		self.gradient_NL = diff_calc.gradient_NL(self)
-		self.hessian_NL = diff_calc.hessian_NL(self)
-
+		self.gradient_NL = diff.gradient_NL(Model)
+		self.hessian_NL = diff.hessian_NL(Model)
 		
 def BlockCoordinateAscent(Model):
 

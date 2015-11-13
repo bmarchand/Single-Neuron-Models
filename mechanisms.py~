@@ -33,7 +33,7 @@ def SpikeGeneration(neuron,control):
 			hpost = np.histogram(fun.sigmoid(neuron.non_linearity[g],MP_part),bins=1000.,range=[-80.,80.])
 
 			plt.plot(h[1][:-1],h[0])
-			plt.plot(hpost[1][:-1],h[0])
+			plt.plot(hpost[1][:-1],hpost[0])
 			plt.show()
 
 			x = np.arange(-80.,80.,0.1)

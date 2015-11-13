@@ -4,41 +4,7 @@ import matplotlib.pylab as plt
 import mechanisms as mech
 import random
 import math
-
-class TwoLayerModel(FitParameters,RunParameters):
-
-	def __init__(self):
-
-		knots = range(-60,70,13)
-
-		bnds = [-100.,100.]
-
-		self.basisNL = fun.NaturalSpline(knots,bdns)
-		self.basisNLder = fun.DerNaturalSpline(knots,bnds)
-		self.paramNL = fun.SplineParamsforId(range(-60,70,13))
-
-		self.basisKer = fun.CosineBasis(self.N_cos_bumps,self.len_cos_bumps,self.dt)
-
-		knots_ASP = range(int(100./self.dt),int(500./self.dt),100)
-		bnds_ASP = [0,500./self.dt]
-
-		self.basisASP = fun.NaturalSpline(knots_ASP,bnds_ASP)
-
-		self.paramKer = np.zeros(int(self.N*self.N_cos_bumps+self.N_knots_ASP+1.)) 
-
-	def add_data(self,neuron):
-		
-		self.input = neuron.input
-		self.output = neuron.output
-		self.paramKer[-1] = -math.log(0.001*neuron.output_rate)
-
-	def fit(self):
-
-		self.paramNL,self.paramKer,self.likelihood = optim.BlockCoordinateAscent(self)
-
-	def plot(self):
-
-		print self.likelihood,self.paramKer
+import optim
 
 class Synapses:
 
@@ -121,7 +87,7 @@ class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters):
 
 	def run(self):
 
-		self.output,self.membrane_potential = mech.SpikeGeneration(self,control='on')
+		self.output,self.membrane_potential = mech.SpikeGeneration(self,control='off')
 	
 		self.output_rate = len(self.output)/(0.001*self.total_time)
 
@@ -140,7 +106,7 @@ class FitParameters:
 	N = 12
 	Ng = 2
 
-	N_cos_bump = 4. #number of PSP basis functions
+	N_cos_bumps = 4 #number of PSP basis functions
 	len_cos_bumps = 500. #ms	
 
 	N_knots_ASP = 4.	
@@ -149,9 +115,42 @@ class FitParameters:
 
 	Tol = 10**-6
 
+class TwoLayerModel(FitParameters,RunParameters):
 
-	
-	
+	def __init__(self):
+
+		knots = range(-60,70,13)
+		bnds = [-100.,100.]
+
+		self.knots = knots
+		self.bnds = bnds
+
+		self.basisNL = fun.NaturalSpline(knots,bnds)
+		self.basisNLder = fun.DerNaturalSpline(knots,bnds)
+		self.paramNL = np.hstack((fun.SplineParamsforId(knots,bnds),fun.SplineParamsforId(knots,bnds)))
+
+		self.basisKer = fun.CosineBasis(self.N_cos_bumps,self.len_cos_bumps,self.dt)
+
+		self.knots_ASP = range(int(100./self.dt),int(500./self.dt),100)
+		self.bnds_ASP = [0,500./self.dt]
+
+		self.basisASP = fun.NaturalSpline(self.knots_ASP,self.bnds_ASP)
+
+		self.paramKer = np.zeros(int(self.N*self.N_cos_bumps+self.N_knots_ASP+1.)) 
+
+	def add_data(self,neuron):
+		
+		self.input = neuron.input
+		self.output = [neuron.output]
+		self.paramKer[-1] = -math.log(0.001*neuron.output_rate)
+
+	def fit(self):
+
+		self.paramNL,self.paramKer,self.likelihood = optim.BlockCoordinateAscent(self)
+
+	def plot(self):
+
+		print self.likelihood,self.paramKer
 	
 		
 		

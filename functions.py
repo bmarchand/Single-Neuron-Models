@@ -63,7 +63,7 @@ def sigmoid(l,x):
 	return y
 
 
-def CosineBasis(K,a=1.8,c=0.,T,dt):
+def CosineBasis(K,T,dt,a=1.8,c=0.):
 
     F = np.zeros((K,T/dt),dtype='float')
 
@@ -99,12 +99,12 @@ def NaturalSpline(knots,bnds):
 		tmp2 = (v-knots[-1])**3
 		tmp2[tmp2<0.] = 0.
 
-		tmp3 = (v-knots[:-2])**3
+		tmp3 = (v-knots[-2])**3
 		tmp3[tmp3<0.] = 0.		
 
 		dk = (tmp1 - tmp2)*(1./(knots[-1]-knots[i-2]))
 
-		dkm1 = (tmp3 - tmp2)*(1./(knots[-1]-knots[:-2]))
+		dkm1 = (tmp3 - tmp2)*(1./(knots[-1]-knots[-2]))
 
 		F[i,:] = dk - dkm1
 
@@ -130,12 +130,12 @@ def DerNaturalSpline(knots,bnds):
 		tmp2 = 3*(v-knots[-1])**2
 		tmp2[tmp2<0.] = 0.
 
-		tmp3 = 3*(v-knots[:-2])**2
+		tmp3 = 3*(v-knots[-2])**2
 		tmp3[tmp3<0.] = 0.		
 
 		dk = (tmp1 - tmp2)*(1./(knots[-1]-knots[i-2]))
 
-		dkm1 = (tmp3 - tmp2)*(1./(knots[-1]-knots[:-2]))
+		dkm1 = (tmp3 - tmp2)*(1./(knots[-1]-knots[-2]))
 
 		F[i,:] = dk - dkm1
 
@@ -149,8 +149,8 @@ def SplineParamsforId(knots,bnds):
 
 	v = np.arange(bnds[0],bnds[1],dv)
 
-	params = np.dot(np.linalg.inv(np.dot(F.transpose(),F)),np.dot(F.transpose(),v))
-
+	params = np.dot(np.linalg.inv(np.dot(F,F.transpose())),np.dot(F,v))
+	
 	return params
 	
 
