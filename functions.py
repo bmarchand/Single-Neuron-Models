@@ -64,22 +64,21 @@ def sigmoid(l,x):
 
 
 def CosineBasis(K,T,dt,a=1.8,c=0.):
+	
+	F = np.zeros((K,T/dt),dtype='float')
+	I = np.arange(T/dt)*dt
 
-    F = np.zeros((K,T/dt),dtype='float')
+	for k in range(K):
 
-    I = np.arange(T/dt)*dt
+		lb = math.exp((k/2.-1)*math.pi/a) - c
 
-    for k in range(K):
+		ub = math.exp((k/2.+1)*math.pi/a) - c
 
-        lb = math.exp((k/2.-1)*math.pi/a) - c
+		cos_on_log = np.cos(a*np.log(I[(I>=lb)&(I<ub)])+c)
 
-        ub = math.exp((k/2.+1)*math.pi/a) - c
+		F[k,(I>=lb)&(I<ub)] = 0.5*(1+cos_on_log-k*0.5*math.pi)
 
-        cos_on_log = np.cos(a*np.log(I[(I>=lb)&(I<ub)]+c
-
-        F[k,(I>=lb)&(I<ub)] = 0.5*(1+cos_on_log)-k*0.5*math.pi))
-
-    return F
+	return F
 
 def NaturalSpline(knots,bnds):
 	
