@@ -127,7 +127,7 @@ class TwoLayerModel(FitParameters,RunParameters):
 
 		self.basisNL = fun.NaturalSpline(knots,bnds)
 		self.basisNLder = fun.DerNaturalSpline(knots,bnds)
-		self.paramNL = fun.SplineParamsforId(knots,bnds)
+		self.paramNL = np.hstack((fun.SplineParamsforId(knots,bnds),fun.SplineParamsforId(knots,bnds)))
 
 		self.basisKer = fun.CosineBasis(self.N_cos_bumps,self.len_cos_bumps,self.dt)
 

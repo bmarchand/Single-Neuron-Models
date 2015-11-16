@@ -113,7 +113,7 @@ class FitParameters:
 	
 	N_knots = 10.
 
-	Tol = 10**-6
+	tol = 10**-6
 
 class TwoLayerModel(FitParameters,RunParameters):
 

@@ -1,9 +1,10 @@
 import numpy as np
 import functions as fun
 from scipy import signal
+import copy
 import diff_calc as diff
 
-class State()
+class State():
 
 	def __init__(self,Model):
 
@@ -18,7 +19,7 @@ class State()
 
 		self.likelihood = diff.likelihood(Model)
 
-	def iter_ker(self,Model):
+	def iter_ker(self):
 
 		self.paramKer = self.paramKer - np.dot(np.linalg.inv(self.hessian_ker),self.gradient_ker)
 

@@ -34,7 +34,10 @@ def likelihood(model):
 
 	MP = MembPot(model)
 
-	LL = np.sum(MP[np.around(model.output)]) - model.dt*np.sum(np.exp(MP))
+	indices = np.around(np.array(model.output))
+	indices = indices.astype('int')
+
+	LL = np.sum(MP[indices]) - model.dt*np.sum(np.exp(MP))
 
 	return LL
 
@@ -69,7 +72,7 @@ def hessian_NL(model):
 	Nsteps = int(model.total_time/model.dt)
 	Nb = np.shape(model.basisNL)[0]
 
-	hessian_NL = np.zeros((Nb*model.Ng,nb*model.Ng,Nsteps),dtype='float')
+	hessian_NL = np.zeros((Nb*model.Ng,Nb*model.Ng,Nsteps),dtype='float')
 
 	MP = MembPot(model)
 	MP12 = subMembPot(model)
@@ -78,10 +81,11 @@ def hessian_NL(model):
 		for h in range(model.Ng):
 
 			if g>=h:
-				ug = np.repeat(MP12[:,g],Nb,axis=0)
-				uh = np.repeat(MP12[:,h],Nb,axis=0)
-				ug = applyNL(model.basisNL,ug,model)
-				uh = applyNL(model.basisNL,uh,model)
+				ug = np.repeat(MP12[g,:],Nb,axis=0)
+				uh = np.repeat(MP12[h,:],Nb,axis=0)
+
+				ug = applyNL_2d(model.basisNL,ug,model)
+				uh = applyNL_2d(model.basisNL,uh,model)
 
 				hessian_NL[g*Nb:(g+1)*Nb,h*Nb:(h+1)*Nb,:] = np.dot(ug,uh.transpose())*np.exp(MP)
 
@@ -109,8 +113,20 @@ def applyNL_2d(NL,u,model):
 	u = u/dv
 	u = np.around(u)
 	u = u.astype('int')
-	for i in range(np.shape(u)[0]):
-		u[i,:] = NL[i,u[i,:]]
+
+	if len(u.shape)==1:
+
+		res = np.zeros((np.shape(NL)[0],np.size(u)),dtype='float')
+
+		for i in range(np.shape(NL)[0]):
+			res[i,:] = NL[i,u]
+
+	else:
+		
+		res = np.zeros((np.shape(NL)[0],np.shape(u)[0]),dtype='float')
+
+		for i in range(np.shape(u)[0]):
+			u[i,:] = NL[i,u[i,:]]
 
 	return u
 
@@ -122,7 +138,7 @@ def gradient_ker(model):
 	N_ASP = len(model.knots_ASP)
 	Nbnl = np.shape(model.basisNL)[0]
 
-	gradient_ker = np.zeros((model.Ng*Nb*Nneur+N_ASP,Nsteps),dtype='float')
+	gradient_ker = np.zeros((model.Ng*Nb*Nneur+N_ASP,Nsteps+1.),dtype='float')
 
 	MP12 = subMembPot(model)
 	MP = MembPot(model)
@@ -133,15 +149,13 @@ def gradient_ker(model):
 
 		X = convolve(model.input[g*Nneur:(g+1)*Nneur],Basis,model)
 
-		print np.shape(model.paramNL[g*Nbnl:(g+1)*Nbnl])
-		print np.shape(model.paramNL)
-		print np.shape(model.basisNLder)
-
 		nlDer = np.dot(model.paramNL[g*Nbnl:(g+1)*Nbnl],model.basisNLder)
 
 		gradient_ker[g*Nb*Nneur:(g+1)*Nb*Nneur,:] = X*applyNL(nlDer,MP12[g,:],model)
 
-	gradient_ker[model.Ng*Nb*Nneur:] = - convolve(model.output,model.basisASP,model)
+	gradient_ker[model.Ng*Nb*Nneur:-1,:] = -convolve(model.output,model.basisASP,model)
+
+	gradient_ker[-1,:] = 
 
 	sptimes = np.around(np.array(model.output[0])/model.dt)
 	sptimes = sptimes.astype('int')
@@ -169,17 +183,13 @@ def hessian_ker(model):
 
 		X = convolve(model.input[g*Nneur:(g+1)*Nneur],Basis,model)
 		
-		print np.shape(model.paramNL[g*Nbnl:(g+1)*Nbnl])
-		print np.shape(model.paramNL)
-		print np.shape(model.basisNLder)
-		
 		nlDer = np.dot(model.paramNL[g*Nbnl:(g+1)*Nbnl],model.basisNLder)
 		
-		gradient_ker[g*Nb*Nneur:(g+1)*Nb*Nneur,:] = X*applyNL(nlDer,MP12[:,g],model)
+		gradient_ker[g*Nb*Nneur:(g+1)*Nb*Nneur,:] = X*applyNL(nlDer,MP12[g,:],model)
 
 	gradient_ker[model.Ng*Nb*Nneur:] = - convolve(model.output,model.basisASP,model)
 
-	Hess = -model.dt*np.dot(gradient_ker,np.exp(MP)*gradient_ker.transpose())
+	Hess = -model.dt*np.dot(gradient_ker*np.exp(MP),gradient_ker.transpose())
 
 	return Hess
 

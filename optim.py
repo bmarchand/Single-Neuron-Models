@@ -1,24 +1,25 @@
 import numpy as np
 import functions as fun
 from scipy import signal
+import copy
 import diff_calc as diff
 
 class State():
 
 	def __init__(self,Model):
 
-		gradient_ker = diff.gradient_ker(Model)
-		gradient_nl = diff.gradient_NL(Model)
+		self.gradient_ker = diff.gradient_ker(Model)
+		self.gradient_nl = diff.gradient_NL(Model)
 
-		hessian_ker = diff.hessian_ker(Model)
-		hessian_nl = diff.hessian_NL(Model)
+		self.hessian_ker = diff.hessian_ker(Model)
+		self.hessian_nl = diff.hessian_NL(Model)
 
 		self.paramKer = Model.paramKer
 		self.paramNL = Model.paramNL
 
 		self.likelihood = diff.likelihood(Model)
 
-	def iter_ker(self,Model):
+	def iter_ker(self):
 
 		self.paramKer = self.paramKer - np.dot(np.linalg.inv(self.hessian_ker),self.gradient_ker)
 
