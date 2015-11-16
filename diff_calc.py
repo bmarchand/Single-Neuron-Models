@@ -4,8 +4,10 @@ import copy
 import matplotlib.pylab as plt
 
 def convolve(spike_train,basis,state):
-	"""Each spike train has to be convoluted with all the basis functions. spike_train is a list of lists of spike times. basis 
-is a numpy array of dimensions (number_of_basis_functions,length_ker_in_ms/dt). state is included in case we need dt or something else."""
+	"""Each spike train has to be convoluted with all the basis functions. 
+	spike_train is a list of lists of spike times. basis is a numpy array 
+	of dimensions (number_of_basis_functions,length_ker_in_ms/dt). 
+	state is included in case we need dt or something else."""
 
 	Nsteps = int(state.total_time/state.dt)
 
@@ -13,7 +15,9 @@ is a numpy array of dimensions (number_of_basis_functions,length_ker_in_ms/dt). 
 
 	ST = np.zeros((len(spike_train),Nsteps),dtype='float')
 
-	for i in range(len(spike_train)):
+	lent = len(spike_train)
+
+	for i in range(lent):
 
 		indices = np.around(np.array(spike_train[i])*(1./state.dt))
 		indices = indices.astype('int')
@@ -21,11 +25,12 @@ is a numpy array of dimensions (number_of_basis_functions,length_ker_in_ms/dt). 
 
 		ST[i,indices] = 1.
 
-	X = np.zeros((len(spike_train)*Nbasis,Nsteps),dtype='float')
+	X = np.zeros((lent*Nbasis,Nsteps),dtype='float')
 
 	for i in range(np.shape(basis)[0]):
 
-		X[len(spike_train)*i:len(spike_train)*(i+1),:] = signal.fftconvolve(ST,np.atleast_2d(basis[i,:]))[:,:Nsteps]
+		exp_i = np.atleast_2d(basis[i,:])
+		X[lent*i:lent*(i+1),:] = signal.fftconvolve(ST,exp_i)[:,:Nsteps]
 	
 	return X
 	
@@ -45,8 +50,9 @@ def gradient_NL(state):
 
 	Nsteps = int(state.total_time/state.dt)
 	Nb = np.shape(state.basisNL)[0]
+	dt = state.dt
 
-	gradient_NL = np.zeros((state.Ng*Nb,Nsteps),dtype='float')
+	gr_NL = np.zeros((state.Ng*Nb,Nsteps),dtype='float')
 
 	MP = MembPot(state)
 	MP12 = subMembPot(state)
@@ -58,21 +64,22 @@ def gradient_NL(state):
 		for i in range(Nb-1):
 			u = np.vstack((MP12[g,:],u))
 
-		gradient_NL[g*Nb:(g+1)*Nb,:] = applyNL_2d(state.basisNL,u,state)
+		gr_NL[g*Nb:(g+1)*Nb,:] = applyNL_2d(state.basisNL,u,state)
 
 	sptimes = np.around(np.array(state.output[0])/state.dt)
 	sptimes = sptimes.astype('int')
+	lambd = np.exp(MP)
 
-	gradient_NL = np.sum(gradient_NL[:,sptimes],axis=1) -state.dt*np.sum(gradient_NL*np.exp(MP),axis=1)
+	gr_NL = np.sum(gr_NL[:,sptimes],axis=1) - dt*np.sum(gr_NL*lambd,axis=1)
 
-	return gradient_NL
+	return gr_NL
 
 def hessian_NL(state):
 
 	Nsteps = int(state.total_time/state.dt)
 	Nb = np.shape(state.basisNL)[0]
 
-	hessian_NL = np.zeros((Nb*state.Ng,Nb*state.Ng,Nsteps),dtype='float')
+	he_NL = np.zeros((Nb*state.Ng,Nb*state.Ng,Nsteps),dtype='float')
 
 	MP = MembPot(state)
 	MP12 = subMembPot(state)
@@ -86,14 +93,15 @@ def hessian_NL(state):
 
 				ug = applyNL_2d(state.basisNL,ug,state)
 				uh = applyNL_2d(state.basisNL,uh,state)
+				uht = uh.transpose()
 
-				hessian_NL[g*Nb:(g+1)*Nb,h*Nb:(h+1)*Nb,:] = np.dot(ug,uh.transpose())*np.exp(MP)
+				he_NL[g*Nb:(g+1)*Nb,h*Nb:(h+1)*Nb,:] = np.dot(ug,uht)*np.exp(MP)
 
-	hessian_NL = -state.dt*np.sum(hessian_NL,axis=2)
+	he_NL = -state.dt*np.sum(he_NL,axis=2)
 
-	hessian_NL = 0.5*(hessian_NL+hessian_NL.transpose())
+	he_NL = 0.5*(he_NL+he_NL.transpose())
 
-	return hessian_NL
+	return he_NL
 
 def applyNL(NL,u,state):
 
@@ -101,7 +109,7 @@ def applyNL(NL,u,state):
 
 	u = u/dv
 	u = np.around(u)
-	u = u.astype('int')
+	u = u.astype('int') - 500
 	u = NL[u]
 
 	return u
@@ -112,7 +120,7 @@ def applyNL_2d(NL,u,state):
 
 	u = u/dv
 	u = np.around(u)
-	u = u.astype('int')
+	u = u.astype('int') - 500
 
 	if len(u.shape)==1:
 
@@ -137,11 +145,14 @@ def gradient_ker(state):
 	Nneur = int(state.N/state.Ng)
 	N_ASP = len(state.knots_ASP)
 	Nbnl = np.shape(state.basisNL)[0]
+	dt = state.dt
+	output = state.output
 
-	gradient_ker = np.zeros((state.Ng*Nb*Nneur+N_ASP+1,Nsteps),dtype='float')
+	gr_ker = np.zeros((state.Ng*Nb*Nneur+N_ASP+1,Nsteps),dtype='float')
 
 	MP12 = subMembPot(state)
 	MP = MembPot(state)
+	lamb = np.exp(MP)
 	
 	for g in range(state.Ng):
 
@@ -151,18 +162,18 @@ def gradient_ker(state):
 
 		nlDer = np.dot(state.paramNL[g*Nbnl:(g+1)*Nbnl],state.basisNLder)
 
-		gradient_ker[g*Nb*Nneur:(g+1)*Nb*Nneur,:] = X*applyNL(nlDer,MP12[g,:],state)
+		gr_ker[g*Nb*Nneur:(g+1)*Nb*Nneur,:] = X*applyNL(nlDer,MP12[g,:],state)
 
-	gradient_ker[state.Ng*Nb*Nneur:-1,:] = -convolve(state.output,state.basisASP,state)
+	gr_ker[state.Ng*Nb*Nneur:-1,:] = - convolve(output,state.basisASP,state)
 
-	sptimes = np.around(np.array(state.output[0])/state.dt)
+	sptimes = np.around(np.array(state.output[0])/dt)
 	sptimes = sptimes.astype('int')
 
-	gradient_ker = np.sum(gradient_ker[:,sptimes],axis=1) - state.dt*np.sum(gradient_ker*np.exp(MP),axis=1)
+	gr_ker = np.sum(gr_ker[:,sptimes],axis=1) - dt*np.sum(gr_ker*lamb,axis=1)
 
-	gradient_ker[-1] = - len(state.output) + state.dt*np.sum(np.exp(MP))
+	gr_ker[-1] = - len(state.output) + state.dt*np.sum(lamb)
 
-	return gradient_ker
+	return gr_ker
 
 def hessian_ker(state):
 
@@ -172,10 +183,11 @@ def hessian_ker(state):
 	N_ASP = len(state.knots_ASP)
 	Nbnl = np.shape(state.basisNL)[0]
 
-	gradient_ker = np.zeros((state.Ng*Nb*Nneur+N_ASP+1,Nsteps),dtype='float')
+	gr_ker = np.zeros((state.Ng*Nb*Nneur+N_ASP+1,Nsteps),dtype='float')
 
 	MP12 = subMembPot(state)
 	MP = MembPot(state)
+	output = state.output
 	
 	for g in range(state.Ng):
 
@@ -185,13 +197,13 @@ def hessian_ker(state):
 		
 		nlDer = np.dot(state.paramNL[g*Nbnl:(g+1)*Nbnl],state.basisNLder)
 		
-		gradient_ker[g*Nb*Nneur:(g+1)*Nb*Nneur,:] = X*applyNL(nlDer,MP12[g,:],state)
+		gr_ker[g*Nb*Nneur:(g+1)*Nb*Nneur,:] = X*applyNL(nlDer,MP12[g,:],state)
 
-	gradient_ker[state.Ng*Nb*Nneur:-1] = - convolve(state.output,state.basisASP,state)
+	gr_ker[state.Ng*Nb*Nneur:-1] = - convolve(output,state.basisASP,state)
 
-	gradient_ker[-1] = - len(state.output) + state.dt*np.sum(np.exp(MP))
+	gr_ker[-1] = - len(state.output) + state.dt*np.sum(np.exp(MP))
 
-	Hess = -state.dt*np.dot(gradient_ker*np.exp(MP),gradient_ker.transpose())
+	Hess = -state.dt*np.dot(gr_ker*np.exp(MP),gr_ker.transpose())
 
 	return Hess
 
@@ -217,6 +229,8 @@ def subMembPot(state):
 def MembPot(state):
 
 	Nsteps = int(state.total_time/state.dt)
+
+	ParKer = state.paramKer
 
 	MP = np.zeros(Nsteps)
 
@@ -246,7 +260,7 @@ def MembPot(state):
 
 	X = convolve(state.output,state.basisASP,state)
 
-	MP = MP - np.dot(state.paramKer[(-state.N_knots_ASP-1):-1],X) - state.paramKer[-1]
+	MP = MP - np.dot(ParKer[(-state.N_knots_ASP-1):-1],X) - ParKer[-1]
 
 	return MP
 

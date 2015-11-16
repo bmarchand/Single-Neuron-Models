@@ -29,13 +29,19 @@ class Synapses:
 
 			if i<(self.N/2):
 
-				exc_ker = fun.alpha_fun(fun.jitter(self.tr_exc),fun.jitter(self.td_exc),self.dt,self.len_ker)
+				trexc = fun.jitter(self.tr_exc)
+				tdexc = fun.jitter(self.td_exc)
+
+				exc_ker = fun.alpha_fun(trexc,tdexc,self.dt,self.len_ker)
 
 				self.ker[l[i],:] = fun.jitter(size)*exc_ker
 
 			else:
 
-				inh_ker = fun.alpha_fun(fun.jitter(self.tr_in),fun.jitter(self.td_in),self.dt,self.len_ker)
+				trin = fun.jitter(self.tr_in)
+				tdin = fun.jitter(self.td_in)
+
+				inh_ker = fun.alpha_fun(trin,tdin,self.dt,self.len_ker)
 		
 				self.ker[l[i],:] = -fun.jitter(size)*inh_ker
 
@@ -53,7 +59,8 @@ class SpikingMechanism:
 	compartments = 2
 	non_linearity = [[100,1.,0.04],[100.,1.,0.04]]
 	threshold = 30.
-	PSP_size = 25. # mV: Roughly the std of the membrane potential in one compartment before NL
+	PSP_size = 25. # mV: Roughly std of the memb. pot. in a compartment 
+                   # before NL
 	ASP_size = 20.
 	ASP_time = 200.
 	ASP_total = 1000.
@@ -87,7 +94,9 @@ class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters):
 
 	def run(self):
 
-		self.output,self.membrane_potential = mech.SpikeGeneration(self,control='off')
+		ctrl = control='off'
+
+		self.output,self.membrane_potential = mech.SpikeGeneration(self,ctrl)
 	
 		self.output_rate = len(self.output)/(0.001*self.total_time)
 
@@ -98,7 +107,9 @@ class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters):
 		plt.plot(h[1][:-1],h[0])
 		plt.show()
 
-		plt.plot(np.arange(int(self.total_time/self.dt)),self.membrane_potential)
+		absc = np.arange(int(self.total_time/self.dt))
+
+		plt.plot(absc,self.membrane_potential)
 		plt.show()
 
 class FitParameters:
@@ -129,9 +140,11 @@ class TwoLayerModel(FitParameters,RunParameters):
 
 	def __init__(self):
 
-		self.paramNL = np.hstack((fun.SplineParamsforId(self.knots,self.bnds),fun.SplineParamsforId(self.knots,self.bnds)))
+		paramId = fun.SplineParamsforId(self.knots,self.bnds)
+		self.paramNL = np.hstack((paramId,paramId))
 
-		self.paramKer = np.zeros(int(self.N*self.N_cos_bumps+self.N_knots_ASP+1.)) 
+		Ncosbumps = self.N_cos_bumps
+		self.paramKer = np.zeros(int(self.N*Ncosbumps+self.N_knots_ASP+1.)) 
 
 	def add_data(self,neuron):
 		

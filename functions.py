@@ -75,7 +75,9 @@ def CosineBasis(K,T,dt,a=1.8,c=0.):
 
         ub = math.exp((k/2.+1)*math.pi/a) - c
 
-        F[k,(I>=lb)&(I<ub)] = 0.5*(1+np.cos(a*np.log(I[(I>=lb)&(I<ub)]+c)-k*0.5*math.pi))
+        cos_on_log = np.cos(a*np.log(I[(I>=lb)&(I<ub)]+c
+
+        F[k,(I>=lb)&(I<ub)] = 0.5*(1+cos_on_log)-k*0.5*math.pi))
 
     return F
 

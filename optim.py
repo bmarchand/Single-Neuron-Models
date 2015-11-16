@@ -25,11 +25,15 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 
 	def iter_ker(self):
 
-		self.paramKer = self.paramKer - np.dot(np.linalg.inv(self.hessian_ker),self.gradient_ker)
+		invH = np.linalg.inv(self.hessian_ker)
+
+		self.paramKer = self.paramKer - np.dot(invH,self.gradient_ker)
 
 	def iter_NL(self):
 
-		self.paramNL = self.paramNL - np.dot(np.linalg.inv(hessian_nl),self.gradient_NL)
+		invH = np.linalg.inv(hessian_nl)
+
+		self.paramNL = self.paramNL - np.dot(invH,self.gradient_NL)
 
 	def update(self):
 
