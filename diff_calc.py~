@@ -138,7 +138,7 @@ def gradient_ker(model):
 	N_ASP = len(model.knots_ASP)
 	Nbnl = np.shape(model.basisNL)[0]
 
-	gradient_ker = np.zeros((model.Ng*Nb*Nneur+N_ASP,Nsteps),dtype='float')
+	gradient_ker = np.zeros((model.Ng*Nb*Nneur+N_ASP+1,Nsteps),dtype='float')
 
 	MP12 = subMembPot(model)
 	MP = MembPot(model)
@@ -153,12 +153,14 @@ def gradient_ker(model):
 
 		gradient_ker[g*Nb*Nneur:(g+1)*Nb*Nneur,:] = X*applyNL(nlDer,MP12[g,:],model)
 
-	gradient_ker[model.Ng*Nb*Nneur:] = - convolve(model.output,model.basisASP,model)
+	gradient_ker[model.Ng*Nb*Nneur:-1,:] = -convolve(model.output,model.basisASP,model)
 
 	sptimes = np.around(np.array(model.output[0])/model.dt)
 	sptimes = sptimes.astype('int')
 
 	gradient_ker = np.sum(gradient_ker[:,sptimes],axis=1) - model.dt*np.sum(gradient_ker*np.exp(MP),axis=1)
+
+	gradient_ker[-1] = - len(model.output) + model.dt*np.sum(np.exp(MP))
 
 	return gradient_ker
 
@@ -170,7 +172,7 @@ def hessian_ker(model):
 	N_ASP = len(model.knots_ASP)
 	Nbnl = np.shape(model.basisNL)[0]
 
-	gradient_ker = np.zeros((model.Ng*Nb*Nneur+N_ASP,Nsteps),dtype='float')
+	gradient_ker = np.zeros((model.Ng*Nb*Nneur+N_ASP+1,Nsteps),dtype='float')
 
 	MP12 = subMembPot(model)
 	MP = MembPot(model)
@@ -185,7 +187,9 @@ def hessian_ker(model):
 		
 		gradient_ker[g*Nb*Nneur:(g+1)*Nb*Nneur,:] = X*applyNL(nlDer,MP12[g,:],model)
 
-	gradient_ker[model.Ng*Nb*Nneur:] = - convolve(model.output,model.basisASP,model)
+	gradient_ker[model.Ng*Nb*Nneur:-1] = - convolve(model.output,model.basisASP,model)
+
+	gradient_ker[-1] = - len(model.output) + model.dt*np.sum(np.exp(MP))
 
 	Hess = -model.dt*np.dot(gradient_ker*np.exp(MP),gradient_ker.transpose())
 

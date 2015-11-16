@@ -49,7 +49,7 @@ class Synapses:
 
 class SpikingMechanism:
 
-	dt = 0.025
+	dt = 1.
 	compartments = 2
 	non_linearity = [[100,1.,0.04],[100.,1.,0.04]]
 	threshold = 30.
@@ -103,6 +103,7 @@ class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters):
 
 class FitParameters:
 
+	dt = 1.
 	N = 12
 	Ng = 2
 
@@ -110,8 +111,17 @@ class FitParameters:
 	len_cos_bumps = 500. #ms	
 
 	N_knots_ASP = 4.	
-	
 	N_knots = 10.
+
+	knots = range(-60,70,13)
+	bnds = [-100.,100.]
+	knots_ASP = range(int(100./dt),int(500./dt),100)
+	bnds_ASP = [0,500./dt]
+
+	basisNL = fun.NaturalSpline(knots,bnds)
+	basisNLder = fun.DerNaturalSpline(knots,bnds)
+	basisKer = fun.CosineBasis(N_cos_bumps,len_cos_bumps,dt)
+	basisASP = fun.NaturalSpline(knots_ASP,bnds_ASP)
 
 	tol = 10**-6
 
@@ -119,22 +129,7 @@ class TwoLayerModel(FitParameters,RunParameters):
 
 	def __init__(self):
 
-		knots = range(-60,70,13)
-		bnds = [-100.,100.]
-
-		self.knots = knots
-		self.bnds = bnds
-
-		self.basisNL = fun.NaturalSpline(knots,bnds)
-		self.basisNLder = fun.DerNaturalSpline(knots,bnds)
-		self.paramNL = np.hstack((fun.SplineParamsforId(knots,bnds),fun.SplineParamsforId(knots,bnds)))
-
-		self.basisKer = fun.CosineBasis(self.N_cos_bumps,self.len_cos_bumps,self.dt)
-
-		self.knots_ASP = range(int(100./self.dt),int(500./self.dt),100)
-		self.bnds_ASP = [0,500./self.dt]
-
-		self.basisASP = fun.NaturalSpline(self.knots_ASP,self.bnds_ASP)
+		self.paramNL = np.hstack((fun.SplineParamsforId(self.knots,self.bnds),fun.SplineParamsforId(self.knots,self.bnds)))
 
 		self.paramKer = np.zeros(int(self.N*self.N_cos_bumps+self.N_knots_ASP+1.)) 
 
