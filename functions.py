@@ -108,6 +108,8 @@ def NaturalSpline(knots,bnds):
 
 		F[i,:] = dk - dkm1
 
+		F[i,:] = F[i,:]/np.sum(F[i,:])
+
 	return F
 
 def DerNaturalSpline(knots,bnds):
@@ -118,9 +120,9 @@ def DerNaturalSpline(knots,bnds):
 
 	v = np.arange(bnds[0],bnds[1],dv)
 
-	F[0,:] = 1.
+	F[0,:] = 0.
 
-	F[1,:] = v
+	F[1,:] = 1.
 
 	for i in range(2,len(knots)):
 

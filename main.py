@@ -59,7 +59,7 @@ class SpikingMechanism:
 	ASP_total = 1000.
 	ASP_total_st = ASP_total/dt
 	delta_v = 5.
-	lambda0 = 0.1
+	lambda0 = 1.
 	in_rate = 20.
 
 class RunParameters:

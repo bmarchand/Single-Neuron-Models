@@ -53,12 +53,7 @@ def BlockCoordinateAscent(Model):
 
 		L0 = copy.copy(state.likelihood)
 
-		print state.paramKer
-
 		state.iter_ker()
-
-		print state.paramKer
-		print state.gradient_ker
 
 		state.update()
 

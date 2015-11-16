@@ -238,7 +238,7 @@ def MembPot(state):
 		Mp_g = Mp_g/dv
 
 		Mp_g = np.around(Mp_g)
-		Mp_g = Mp_g.astype('int')
+		Mp_g = Mp_g.astype('int') -500
 
 		Mp_g = NL[Mp_g]
 	

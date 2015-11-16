@@ -25,6 +25,9 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 
 	def iter_ker(self):
 
+		print "gradient: ",self.gradient_ker
+		print "hessian: ",self.hessian_ker
+
 		self.paramKer = self.paramKer - np.dot(np.linalg.inv(self.hessian_ker),self.gradient_ker)
 
 	def iter_NL(self):
@@ -53,12 +56,7 @@ def BlockCoordinateAscent(Model):
 
 		L0 = copy.copy(state.likelihood)
 
-		print param_ker
-
 		state.iter_ker()
-
-		print state.paramKer
-		print state.gradient_ker
 
 		state.update()
 

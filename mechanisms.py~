@@ -2,12 +2,15 @@ import numpy as np
 import functions as fun
 import random
 import matplotlib.pylab as plt
+import copy
 
 def SpikeGeneration(neuron,control):
 
 	Nsteps = int(neuron.total_time/neuron.dt)
 
 	MP = np.zeros((Nsteps,),dtype='float')
+
+	inp_tmp = copy.copy(neuron.input)
 
 	output = []
 
@@ -19,7 +22,7 @@ def SpikeGeneration(neuron,control):
 
 		for cnt in range(nsyn):
 
-			in_syn = neuron.input.pop()
+			in_syn = inp_tmp.pop()
 
 			for t in in_syn:
 
