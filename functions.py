@@ -155,8 +155,24 @@ def SplineParamsforId(knots,bnds):
 	params = np.dot(np.linalg.inv(np.dot(F,F.transpose())),np.dot(F,v))
 	
 	return params
-	
 
+def Ker2Param(ker,basis):
+
+	B = basis
+
+	Nb = np.shape(B)[0]
+
+	Nparam = np.shape(ker)[0]*np.shape(B)[0]
+	
+	paramKer = np.zeros((Nparam),dtype='float')
+
+	for i in range(np.shape(ker)[0]):
+
+		bbtm1 = np.linalg.inv(np.dot(B,B.transpose()))
+
+		paramKer[i*Nb:(i+1)*Nb] = np.dot(bbtm1,np.dot(ker,B.transpose()))
+	
+	return paramKer
 
 
 

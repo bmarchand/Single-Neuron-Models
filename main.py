@@ -159,9 +159,3 @@ class TwoLayerModel(FitParameters,RunParameters):
 	def plot(self):
 
 		print self.likelihood,self.paramKer
-	
-		
-		
-
-
-		
