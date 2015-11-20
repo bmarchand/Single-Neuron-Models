@@ -116,17 +116,15 @@ def Tents(knots,bnds):
 
 	Nb = len(knots)+2
 
-	delta = 1000/(Nb-1)
+	delta = 1000/(Nb-2)
 
-	F = np.zeros((len(knots)+2,1000),dtype='float')
+	F = np.zeros((len(knots)+1,1000),dtype='float')
 
 	F[0,:delta] = np.arange(delta,0,-1)
 
 	F[-1,-delta:] = np.arange(delta)
 
-	for i in range(1,Nb,1):
-
-		print i,np.shape(F[i,delta*i:delta*(i+1)])
+	for i in range(1,Nb-2,1):
 
 		F[i,delta*i:delta*(i+1)] = np.arange(delta,0,-1)
 		F[i,delta*(i-1):delta*i] = np.arange(delta)
@@ -135,7 +133,7 @@ def Tents(knots,bnds):
 
 def DerTents(knots,bnds):
 
-	F = np.zeros((len(knots)+2,1000),dtype='float')
+	F = np.zeros((len(knots)+1,1000),dtype='float')
 
 	Nb = len(knots)+2
 
@@ -205,9 +203,6 @@ def Ker2Param(ker,basis):
 	paramKer = np.zeros((Nparam),dtype='float')
 
 	for i in range(np.shape(ker)[0]):
-
-		print np.shape(ker)
-		print np.shape(B)
 
 		bbtm1 = np.linalg.inv(np.dot(B,B.transpose()))
 		yxt = np.dot(ker[i,:],B.transpose())

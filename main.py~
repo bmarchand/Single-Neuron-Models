@@ -124,7 +124,8 @@ class TwoLayerModel(FitParameters,RunParameters):
 		paramId = fun.SplineParamsforId(self.knots,self.bnds)
 		#Id = np.atleast_2d(np.arange(1000.))
 		#paramId = fun.Ker2Param(Id,self.basisNL)
-		self.paramNL = np.hstack((paramId,paramId))
+		
+		self.paramNL = np.hstack((paramId,paramId,np.zeros(4)))
 		Ncosbumps = self.N_cos_bumps
 		self.paramKer = np.zeros(int(self.N*Ncosbumps+self.N_knots_ASP+1.)) 
 

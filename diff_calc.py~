@@ -7,7 +7,7 @@ def convolve(spike_train,basis,state):
 	"""Each spike train has to be convoluted with all the basis functions. 
 	spike_train is a list of lists of spike times. basis is a numpy array 
 	of dimensions (number_of_basis_functions,length_ker_in_ms/dt). 
-	state is included in case we need dt or something else."""
+	state is included in case we need dt or something else. boobs."""
 
 	Nsteps = int(state.total_time/state.dt)
 
@@ -160,6 +160,9 @@ def gradient_ker(state):
 
 		X = convolve(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
 
+
+		print np.shape(state.paramNL[g*Nbnl:(g+1)*Nbnl]),np.shape(state.basisNLder)
+
 		nlDer = np.dot(state.paramNL[g*Nbnl:(g+1)*Nbnl],state.basisNLder)
 
 		gr_ker[g*Nb*Nneur:(g+1)*Nb*Nneur,:] = X*applyNL(nlDer,MP12[g,:],state)
@@ -244,9 +247,6 @@ def MembPot(state):
 		Mp_g = MP12[g,:]
 
 		F = state.basisNL
-
-		print np.shape(F)
-		print np.shape(state.paramNL[g*Nbnl:(g+1)*Nbnl])
 
 		NL = np.dot(F.transpose(),state.paramNL[g*Nbnl:(g+1)*Nbnl])
 
