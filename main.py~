@@ -10,10 +10,8 @@ class Synapses:
 
 	tr_in = 3.
 	td_in = 80.
-
 	tr_exc = 1.
-	td_exc = 20.
-	 
+	td_exc = 20.	 
 	N = 12
 
 	def __init__(self,size,dt=0.025,len_ker=200.):
@@ -22,7 +20,6 @@ class Synapses:
 		self.len_ker = len_ker
 		self.len_ker_st = int(len_ker/dt)
 		self.ker = np.zeros((self.N,int(len_ker/dt)),dtype=float)
-
 		l = [0,1,2,6,7,8,3,4,5,9,10,11]
 		 
 		for i in range(self.N):
@@ -31,18 +28,14 @@ class Synapses:
 
 				trexc = fun.jitter(self.tr_exc)
 				tdexc = fun.jitter(self.td_exc)
-
 				exc_ker = fun.alpha_fun(trexc,tdexc,self.dt,self.len_ker)
-
 				self.ker[l[i],:] = fun.jitter(size)*exc_ker
 
 			else:
 
 				trin = fun.jitter(self.tr_in)
 				tdin = fun.jitter(self.td_in)
-
-				inh_ker = fun.alpha_fun(trin,tdin,self.dt,self.len_ker)
-		
+				inh_ker = fun.alpha_fun(trin,tdin,self.dt,self.len_ker)		
 				self.ker[l[i],:] = -fun.jitter(size)*inh_ker
 
 	def plot(self):
@@ -59,8 +52,7 @@ class SpikingMechanism:
 	compartments = 2
 	non_linearity = [[100,1.,0.04],[100.,1.,0.04]]
 	threshold = 30.
-	PSP_size = 25. # mV: Roughly std of the memb. pot. in a compartment 
-                   # before NL
+	PSP_size = 25. # mV: Roughly std of the memb. pot. in a compartment 	                 # before NL
 	ASP_size = 20.
 	ASP_time = 200.
 	ASP_total = 1000.
@@ -89,26 +81,20 @@ class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters):
 		for i in range(self.N):
 
 			SpikeTrain = fun.spike_train(self)
-
 			self.input.append(SpikeTrain)
 
 	def run(self):
 
 		ctrl = control='off'
-
 		self.output,self.membrane_potential = mech.SpikeGeneration(self,ctrl)
-	
 		self.output_rate = len(self.output)/(0.001*self.total_time)
 
 	def plot(self):
 	
 		h = np.histogram(self.membrane_potential,bins=1000.)
-
 		plt.plot(h[1][:-1],h[0])
 		plt.show()
-
 		absc = np.arange(int(self.total_time/self.dt))
-
 		plt.plot(absc,self.membrane_potential)
 		plt.show()
 
@@ -117,23 +103,18 @@ class FitParameters:
 	dt = 1.
 	N = 12
 	Ng = 2
-
 	N_cos_bumps = 4 #number of PSP basis functions
 	len_cos_bumps = 500. #ms	
-
 	N_knots_ASP = 4.	
 	N_knots = 10.
-
 	knots = range(-60,70,13)
 	bnds = [-100.,100.]
 	knots_ASP = range(int(100./dt),int(500./dt),100)
 	bnds_ASP = [0,500./dt]
-
-	basisNL = fun.NaturalSpline(knots,bnds)
-	basisNLder = fun.DerNaturalSpline(knots,bnds)
+	basisNL = fun.Tents(knots,bnds)
+	basisNLder = fun.DerTents(knots,bnds)
 	basisKer = fun.CosineBasis(N_cos_bumps,len_cos_bumps,dt)
 	basisASP = fun.NaturalSpline(knots_ASP,bnds_ASP)
-
 	tol = 10**-6
 
 class TwoLayerModel(FitParameters,RunParameters):
@@ -141,8 +122,9 @@ class TwoLayerModel(FitParameters,RunParameters):
 	def __init__(self):
 
 		paramId = fun.SplineParamsforId(self.knots,self.bnds)
+		#Id = np.atleast_2d(np.arange(1000.))
+		#paramId = fun.Ker2Param(Id,self.basisNL)
 		self.paramNL = np.hstack((paramId,paramId))
-
 		Ncosbumps = self.N_cos_bumps
 		self.paramKer = np.zeros(int(self.N*Ncosbumps+self.N_knots_ASP+1.)) 
 
@@ -159,9 +141,3 @@ class TwoLayerModel(FitParameters,RunParameters):
 	def plot(self):
 
 		print self.likelihood,self.paramKer
-	
-		
-		
-
-
-		

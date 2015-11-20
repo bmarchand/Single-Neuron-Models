@@ -24,6 +24,7 @@ def exp_fun(tau,dt,L,control='off'):
 
 	x = np.arange(int(L/dt))
 
+
 	tau_steps = tau/dt
 
 	y = np.exp(-x/tau_steps)
@@ -74,9 +75,9 @@ def CosineBasis(K,T,dt,a=1.8,c=0.):
 
 		ub = math.exp((k/2.+1)*math.pi/a) - c
 
-		cos_on_log = np.cos(a*np.log(I[(I>=lb)&(I<ub)])+c)
+		cos_on_log = np.cos(a*np.log(I[(I>=lb)&(I<ub)]+c)-k*0.5*math.pi)
 
-		F[k,(I>=lb)&(I<ub)] = 0.5*(1+cos_on_log-k*0.5*math.pi)
+		F[k,(I>=lb)&(I<ub)] = 0.5*(1 + cos_on_log)
 
 	return F
 
@@ -109,7 +110,44 @@ def NaturalSpline(knots,bnds):
 
 		F[i,:] = dk - dkm1
 
-		F[i,:] = F[i,:]/np.sum(F[i,:])
+	return F
+
+def Tents(knots,bnds):
+
+	Nb = len(knots)+2
+
+	delta = 1000/(Nb-1)
+
+	F = np.zeros((len(knots)+2,1000),dtype='float')
+
+	F[0,:delta] = np.arange(delta,0,-1)
+
+	F[-1,-delta:] = np.arange(delta)
+
+	for i in range(1,Nb,1):
+
+		print i,np.shape(F[i,delta*i:delta*(i+1)])
+
+		F[i,delta*i:delta*(i+1)] = np.arange(delta,0,-1)
+		F[i,delta*(i-1):delta*i] = np.arange(delta)
+
+	return F
+
+def DerTents(knots,bnds):
+
+	F = np.zeros((len(knots)+2,1000),dtype='float')
+
+	Nb = len(knots)+2
+
+	delta = 1000/(Nb-1)
+
+	F[0,:delta] = -1.
+	F[-1,-delta:] = 1.
+
+	for i in range(1,Nb-2,1):
+
+		F[i,delta*i:delta*(i+1)] = -1.
+		F[i,delta*(i-1):delta*i] = 1.
 
 	return F
 
@@ -168,9 +206,13 @@ def Ker2Param(ker,basis):
 
 	for i in range(np.shape(ker)[0]):
 
-		bbtm1 = np.linalg.inv(np.dot(B,B.transpose()))
+		print np.shape(ker)
+		print np.shape(B)
 
-		paramKer[i*Nb:(i+1)*Nb] = np.dot(bbtm1,np.dot(ker,B.transpose()))
+		bbtm1 = np.linalg.inv(np.dot(B,B.transpose()))
+		yxt = np.dot(ker[i,:],B.transpose())
+
+		paramKer[i*Nb:(i+1)*Nb] = np.dot(yxt,bbtm1)
 	
 	return paramKer
 
