@@ -7,7 +7,7 @@ def convolve(spike_train,basis,state):
 	"""Each spike train has to be convoluted with all the basis functions. 
 	spike_train is a list of lists of spike times. basis is a numpy array 
 	of dimensions (number_of_basis_functions,length_ker_in_ms/dt). 
-	state is included in case we need dt or something else."""
+	state is included in case we need dt or something else. boobs."""
 
 	Nsteps = int(state.total_time/state.dt)
 
