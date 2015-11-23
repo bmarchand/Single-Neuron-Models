@@ -7,7 +7,7 @@ def convolve(spike_train,basis,state):
 	"""Each spike train has to be convoluted with all the basis functions. 
 	spike_train is a list of lists of spike times. basis is a numpy array 
 	of dimensions (number_of_basis_functions,length_ker_in_ms/dt). 
-	state is included in case we need dt or something else. boobs."""
+	state is included in case we need dt or something else."""
 
 	Nsteps = int(state.total_time/state.dt)
 
@@ -143,7 +143,7 @@ def gradient_ker(state):
 	Nb = np.shape(state.basisKer)[0]
 	Nsteps = int(state.total_time/state.dt)
 	Nneur = int(state.N/state.Ng)
-	N_ASP = len(state.knots_ASP)
+	N_ASP = len(state.knots_ASP)+1
 	Nbnl = np.shape(state.basisNL)[0]
 	dt = state.dt
 	output = state.output
@@ -161,6 +161,8 @@ def gradient_ker(state):
 		X = convolve(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
 
 		nlDer = np.dot(state.paramNL[g*Nbnl:(g+1)*Nbnl],state.basisNLder)
+
+		NL = np.dot(state.paramNL[g*Nbnl:(g+1)*Nbnl],state.basisNL)		
 
 		gr_ker[g*Nb*Nneur:(g+1)*Nb*Nneur,:] = X*applyNL(nlDer,MP12[g,:],state)
 
@@ -180,7 +182,7 @@ def hessian_ker(state):
 	Nb = np.shape(state.basisKer)[0]
 	Nsteps = int(state.total_time/state.dt)
 	Nneur = int(state.N/state.Ng)
-	N_ASP = len(state.knots_ASP)
+	N_ASP = len(state.knots_ASP)+1
 	Nbnl = np.shape(state.basisNL)[0]
 
 	gr_ker = np.zeros((state.Ng*Nb*Nneur+N_ASP+1,Nsteps),dtype='float')
@@ -260,7 +262,9 @@ def MembPot(state):
 
 	X = convolve(state.output,state.basisASP,state)
 
-	MP = MP - np.dot(ParKer[(-state.N_knots_ASP-1):-1],X) - ParKer[-1]
+	Nb = np.shape(X)[0]
+
+	MP = MP - np.dot(ParKer[(-Nb-1):-1],X) - ParKer[-1]
 
 	return MP
 

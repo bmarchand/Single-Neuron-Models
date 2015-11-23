@@ -137,9 +137,9 @@ def DerTents(knots,bnds):
 
 	Nb = len(knots)+2
 
-	delta = 1000/(Nb-1)
+	delta = 1000/(Nb-2)
 
-	F[0,:delta] = -1.
+	F[0,:delta+1] = -1.
 	F[-1,-delta:] = 1.
 
 	for i in range(1,Nb-2,1):
@@ -203,9 +203,6 @@ def Ker2Param(ker,basis):
 	paramKer = np.zeros((Nparam),dtype='float')
 
 	for i in range(np.shape(ker)[0]):
-
-		print np.shape(ker)
-		print np.shape(B)
 
 		bbtm1 = np.linalg.inv(np.dot(B,B.transpose()))
 		yxt = np.dot(ker[i,:],B.transpose())

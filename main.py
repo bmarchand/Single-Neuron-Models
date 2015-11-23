@@ -103,7 +103,7 @@ class FitParameters:
 	dt = 1.
 	N = 12
 	Ng = 2
-	N_cos_bumps = 4 #number of PSP basis functions
+	N_cos_bumps = 5 #number of PSP basis functions
 	len_cos_bumps = 500. #ms	
 	N_knots_ASP = 4.	
 	N_knots = 10.
@@ -114,7 +114,7 @@ class FitParameters:
 	basisNL = fun.Tents(knots,bnds)
 	basisNLder = fun.DerTents(knots,bnds)
 	basisKer = fun.CosineBasis(N_cos_bumps,len_cos_bumps,dt)
-	basisASP = fun.NaturalSpline(knots_ASP,bnds_ASP)
+	basisASP = fun.Tents(knots_ASP,bnds_ASP)
 	tol = 10**-6
 
 class TwoLayerModel(FitParameters,RunParameters):
@@ -127,7 +127,7 @@ class TwoLayerModel(FitParameters,RunParameters):
 		
 		self.paramNL = np.hstack((paramId,paramId,np.zeros(3)))
 		Ncosbumps = self.N_cos_bumps
-		self.paramKer = np.zeros(int(self.N*Ncosbumps+self.N_knots_ASP+1.)) 
+		self.paramKer = np.zeros(int(self.N*Ncosbumps+self.N_knots_ASP+1.+1.)) 
 
 	def add_data(self,neuron):
 		

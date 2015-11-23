@@ -137,7 +137,7 @@ def DerTents(knots,bnds):
 
 	Nb = len(knots)+2
 
-	delta = 1000/(Nb-1)
+	delta = 1000/(Nb-2)
 
 	F[0,:delta] = -1.
 	F[-1,-delta:] = 1.

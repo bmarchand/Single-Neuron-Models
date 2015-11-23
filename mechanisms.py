@@ -57,8 +57,6 @@ def SpikeGeneration(neuron,control):
 
 		MP = MP + fun.sigmoid(neuron.non_linearity[g],MP_part)
 
-		
-
 	for t in range(Nsteps):
 
 		lamb = neuron.lambda0*np.exp((MP[t]-neuron.threshold)/neuron.delta_v)
@@ -75,12 +73,7 @@ def SpikeGeneration(neuron,control):
 
 			MP[t:bndup] = MP[t:bndup] - size*expfun[:bndupk]
 
+			print p
+
 	return output, MP
-
-		
-
-		
-
-		
-
 	
