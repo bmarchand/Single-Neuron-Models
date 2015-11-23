@@ -103,7 +103,7 @@ class FitParameters:
 	dt = 1.
 	N = 12
 	Ng = 2
-	N_cos_bumps = 4 #number of PSP basis functions
+	N_cos_bumps = 5 #number of PSP basis functions
 	len_cos_bumps = 500. #ms	
 	N_knots_ASP = 4.	
 	N_knots = 10.
@@ -121,11 +121,12 @@ class TwoLayerModel(FitParameters,RunParameters):
 
 	def __init__(self):
 
-		paramId = fun.SplineParamsforId(self.knots,self.bnds)
+		paramId = np.zeros(np.shape(self.basisNL)[0])
+		#paramId = fun.SplineParamsforId(self.knots,self.bnds)
 		#Id = np.atleast_2d(np.arange(1000.))
 		#paramId = fun.Ker2Param(Id,self.basisNL)
 		
-		self.paramNL = np.hstack((paramId,paramId,np.zeros(3)))
+		self.paramNL = np.hstack((paramId,paramId))
 		Ncosbumps = self.N_cos_bumps
 		self.paramKer = np.zeros(int(self.N*Ncosbumps+self.N_knots_ASP+1.+1.)) 
 
@@ -133,7 +134,7 @@ class TwoLayerModel(FitParameters,RunParameters):
 		
 		self.input = neuron.input
 		self.output = [neuron.output]
-		self.paramKer[-1] = -math.log(0.001*neuron.output_rate)
+		self.paramKer[-1] = -math.log(neuron.output_rate)
 
 	def fit(self):
 

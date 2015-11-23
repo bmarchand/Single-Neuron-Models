@@ -29,7 +29,8 @@ basASP = state.basisASP
 state.paramKer[state.N*Nb:-1] = fun.Ker2Param(expfun,basASP)
 state.paramKer[-1] = neuron.threshold/neuron.delta_v
 
-dv = (state.bnds[1] - state.bnds[0])*0.001
+dv = (state.bnds[1] - state.bnds[0])*0.00001
+
 
 v = np.arange(state.bnds[0],state.bnds[1],dv)
 v = np.atleast_2d(fun.sigmoid(neuron.non_linearity[0],v))

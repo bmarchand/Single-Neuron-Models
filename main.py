@@ -111,21 +111,22 @@ class FitParameters:
 	bnds = [-100.,100.]
 	knots_ASP = range(int(100./dt),int(500./dt),100)
 	bnds_ASP = [0,500./dt]
-	basisNL = fun.Tents(knots,bnds)
-	basisNLder = fun.DerTents(knots,bnds)
+	basisNL = fun.Tents(knots,bnds,100000.)
+	basisNLder = fun.DerTents(knots,bnds,100000.)
 	basisKer = fun.CosineBasis(N_cos_bumps,len_cos_bumps,dt)
-	basisASP = fun.Tents(knots_ASP,bnds_ASP)
+	basisASP = fun.Tents(knots_ASP,bnds_ASP,1000.)
 	tol = 10**-6
 
 class TwoLayerModel(FitParameters,RunParameters):
 
 	def __init__(self):
 
-		paramId = fun.SplineParamsforId(self.knots,self.bnds)
+		paramId = np.zeros(np.shape(self.basisNL)[0])
+		#paramId = fun.SplineParamsforId(self.knots,self.bnds)
 		#Id = np.atleast_2d(np.arange(1000.))
 		#paramId = fun.Ker2Param(Id,self.basisNL)
 		
-		self.paramNL = np.hstack((paramId,paramId,np.zeros(3)))
+		self.paramNL = np.hstack((paramId,paramId))
 		Ncosbumps = self.N_cos_bumps
 		self.paramKer = np.zeros(int(self.N*Ncosbumps+self.N_knots_ASP+1.+1.)) 
 
@@ -133,7 +134,7 @@ class TwoLayerModel(FitParameters,RunParameters):
 		
 		self.input = neuron.input
 		self.output = [neuron.output]
-		self.paramKer[-1] = -math.log(0.001*neuron.output_rate)
+		self.paramKer[-1] = -math.log(neuron.output_rate)
 
 	def fit(self):
 

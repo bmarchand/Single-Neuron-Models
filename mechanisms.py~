@@ -63,8 +63,6 @@ def SpikeGeneration(neuron,control):
 
 		p = lamb*neuron.dt
 
-		print p
-
 		if p>random.random():
 
 			output.append(t*neuron.dt)
@@ -74,6 +72,8 @@ def SpikeGeneration(neuron,control):
 			expfun = fun.exp_fun(neuron.ASP_time,neuron.dt,neuron.ASP_total)
 
 			MP[t:bndup] = MP[t:bndup] - size*expfun[:bndupk]
+
+			print p
 
 	return output, MP
 	

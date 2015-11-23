@@ -7,7 +7,7 @@ def convolve(spike_train,basis,state):
 	"""Each spike train has to be convoluted with all the basis functions. 
 	spike_train is a list of lists of spike times. basis is a numpy array 
 	of dimensions (number_of_basis_functions,length_ker_in_ms/dt). 
-	state is included in case we need dt or something else. boobs."""
+	state is included in case we need dt or something else."""
 
 	Nsteps = int(state.total_time/state.dt)
 
@@ -105,22 +105,22 @@ def hessian_NL(state):
 
 def applyNL(NL,u,state):
 
-	dv = (state.bnds[1] - state.bnds[0])*0.001
+	dv = (state.bnds[1] - state.bnds[0])*0.00001
 
 	u = u/dv
 	u = np.around(u)
-	u = u.astype('int') - 500
+	u = u.astype('int') - 50000
 	u = NL[u]
 
 	return u
 
 def applyNL_2d(NL,u,state):
 
-	dv = (state.bnds[1] - state.bnds[0])*0.001
+	dv = (state.bnds[1] - state.bnds[0])*0.00001
 
 	u = u/dv
 	u = np.around(u)
-	u = u.astype('int') - 500
+	u = u.astype('int') - 50000
 
 	if len(u.shape)==1:
 
@@ -249,14 +249,18 @@ def MembPot(state):
 
 		NL = np.dot(F.transpose(),state.paramNL[g*Nbnl:(g+1)*Nbnl])
 
-		dv = (state.bnds[1] - state.bnds[0])*0.001
+		dv = (state.bnds[1] - state.bnds[0])*0.00001
 
 		Mp_g = Mp_g/dv
 
 		Mp_g = np.around(Mp_g)
-		Mp_g = Mp_g.astype('int') -500
+		Mp_g = Mp_g.astype('int') + 50000
 
 		Mp_g = NL[Mp_g]
+
+		if Mp_g[100]<>0:
+			plt.plot(Mp_g)
+			plt.show()
 	
 		MP = MP + Mp_g
 

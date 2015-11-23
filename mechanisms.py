@@ -73,7 +73,5 @@ def SpikeGeneration(neuron,control):
 
 			MP[t:bndup] = MP[t:bndup] - size*expfun[:bndupk]
 
-			print p
-
 	return output, MP
 	

@@ -83,9 +83,9 @@ def CosineBasis(K,T,dt,a=1.8,c=0.):
 
 def NaturalSpline(knots,bnds):
 	
-	dv = 0.001*(bnds[1]-bnds[0])
+	dv = 0.00001*(bnds[1]-bnds[0])
 
-	F = np.zeros((len(knots),1000.),dtype='float')
+	F = np.zeros((len(knots),100000.),dtype='float')
 
 	v = np.arange(bnds[0],bnds[1],dv)
 
@@ -112,13 +112,13 @@ def NaturalSpline(knots,bnds):
 
 	return F
 
-def Tents(knots,bnds):
+def Tents(knots,bnds,total_length):
 
 	Nb = len(knots)+2
 
-	delta = 1000/(Nb-2)
+	delta = total_length/(Nb-2)
 
-	F = np.zeros((len(knots)+1,1000),dtype='float')
+	F = np.zeros((len(knots)+1,total_length),dtype='float')
 
 	F[0,:delta] = np.arange(delta,0,-1)
 
@@ -131,15 +131,15 @@ def Tents(knots,bnds):
 
 	return F
 
-def DerTents(knots,bnds):
+def DerTents(knots,bnds,total_length):
 
-	F = np.zeros((len(knots)+1,1000),dtype='float')
+	F = np.zeros((len(knots)+1,total_length),dtype='float')
 
 	Nb = len(knots)+2
 
-	delta = 1000/(Nb-2)
+	delta = total_length/(Nb-2)
 
-	F[0,:delta+1] = -1.
+	F[0,:delta] = -1.
 	F[-1,-delta:] = 1.
 
 	for i in range(1,Nb-2,1):
@@ -184,7 +184,7 @@ def SplineParamsforId(knots,bnds):
 
 	F = NaturalSpline(knots,bnds)
 
-	dv = 0.001*(bnds[1]-bnds[0])
+	dv = 0.00001*(bnds[1]-bnds[0])
 
 	v = np.arange(bnds[0],bnds[1],dv)
 
@@ -204,6 +204,7 @@ def Ker2Param(ker,basis):
 
 	for i in range(np.shape(ker)[0]):
 
+		print np.shape(ker[i,:]),np.shape(B.transpose())
 		bbtm1 = np.linalg.inv(np.dot(B,B.transpose()))
 		yxt = np.dot(ker[i,:],B.transpose())
 
