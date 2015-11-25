@@ -111,10 +111,10 @@ class FitParameters:
 	bnds = [-100.,100.]
 	knots_ASP = range(int(100./dt),int(500./dt),100)
 	bnds_ASP = [0,500./dt]
-	basisNL = fun.Tents(knots,bnds)
-	basisNLder = fun.DerTents(knots,bnds)
+	basisNL = fun.Tents(knots,bnds,100000.)
+	basisNLder = fun.DerTents(knots,bnds,100000.)
 	basisKer = fun.CosineBasis(N_cos_bumps,len_cos_bumps,dt)
-	basisASP = fun.Tents(knots_ASP,bnds_ASP)
+	basisASP = fun.Tents(knots_ASP,bnds_ASP,1000.)
 	tol = 10**-6
 
 class TwoLayerModel(FitParameters,RunParameters):

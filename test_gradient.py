@@ -48,23 +48,22 @@ gradientk = copy.copy(state.gradient_ker)
 paramk = copy.copy(state.paramKer)
 l0 = copy.copy(state.likelihood)
 
-#print gradientk
+print gradientk
 
-#res = []
-#res_l = []
+res = []
+res_l = []
 
-#for r in range(10):
+for r in range(80,100,1):
 
-#	print r
-#	state.paramKer = (r/9.)*paramk
-#	state.update()	
-#	res = res + [state.likelihood]
+	print r
+	state.paramKer[-1] = (r/90.)*paramk[-1]
+	state.update()	
+	res = res + [state.likelihood]
+	res_l = res_l + [l0 + gradientk[-1]*(state.paramKer[-1]-paramk[-1])]
 
-#	res_l = res_l + [l0 + np.dot(gradientk.transpose(),(state.paramKer-paramk))]
-
-#res = np.array(res)
-#res_l = np.array(res_l)
-#plt.plot(res)
-#plt.plot(res_l)
-#plt.show()
+res = np.array(res)
+res_l = np.array(res_l)
+plt.plot(res)
+plt.plot(res_l)
+plt.show()
 

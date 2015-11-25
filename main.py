@@ -134,7 +134,7 @@ class TwoLayerModel(FitParameters,RunParameters):
 		
 		self.input = neuron.input
 		self.output = [neuron.output]
-		self.paramKer[-1] = -math.log(neuron.output_rate)
+		self.paramKer[-1] = -math.log(0.001*neuron.output_rate)
 
 	def fit(self):
 
