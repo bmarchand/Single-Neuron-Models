@@ -4,15 +4,18 @@ from scipy import signal
 import copy
 import diff_calc as diff
 import main
+import matplotlib.pylab as plt
 
 class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
-
+#kind of the "microstate", as in statistical physics, of the model. The model itself
+#only contains the model parameters and the fitting parameters. not the gradients
+# nor the hessian.
 	def __init__(self,Model):
 
 		self.input = Model.input
 		self.output = Model.output
 
-		self.gradient_ker = diff.gradient_ker(Model)
+		self.gradient_ker = diff.gradient_ker(Model) 
 		self.gradient_NL = diff.gradient_NL(Model)
 
 		self.hessian_ker = diff.hessian_ker(Model)
@@ -23,9 +26,7 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 
 		self.likelihood = diff.likelihood(Model)
 
-		Np = int(np.size(Model.paramNL)*0.5)
-
-		self.NL = np.dot(self.paramNL[:Np],self.basisNL)
+		Np = int(np.size(Model.paramNL)*0.5) #number of basis functions per NL.
 
 	def iter_ker(self):
 

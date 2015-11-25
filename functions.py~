@@ -204,7 +204,6 @@ def Ker2Param(ker,basis):
 
 	for i in range(np.shape(ker)[0]):
 
-		print np.shape(ker[i,:]),np.shape(B.transpose())
 		bbtm1 = np.linalg.inv(np.dot(B,B.transpose()))
 		yxt = np.dot(ker[i,:],B.transpose())
 

@@ -7,189 +7,188 @@ def convolve(spike_train,basis,state):
 	"""Each spike train has to be convoluted with all the basis functions. 
 	spike_train is a list of lists of spike times. basis is a numpy array 
 	of dimensions (number_of_basis_functions,length_ker_in_ms/dt). 
-	state is included in case we need dt or something else."""
+	state is included in case we need dt or something else. This is a general
+	purpose convolution function. I'm doing here what I didn't do for spike
+	generation. That's not very coherent. """
 
-	Nsteps = int(state.total_time/state.dt)
+	Nsteps = int(state.total_time/state.dt)  
 
-	Nbasis = copy.copy(np.shape(basis)[0])
+	Nb = copy.copy(np.shape(basis)[0]) #nb of basis func. copy because np.atleast_2d.
 
-	ST = np.zeros((len(spike_train),Nsteps),dtype='float')
-
+	ST = np.zeros((len(spike_train),Nsteps),dtype='float') #huge array with 0s and 1s.
+										   # len(spike_train) = number of spiketrains.
 	lent = len(spike_train)
 
-	for i in range(lent):
+	for i in range(lent): #number of spite-trains
 
-		indices = np.around(np.array(spike_train[i])*(1./state.dt))+[1.]
-		indices = indices.astype('int')
-		indices = indices[indices<Nsteps]
+		indices = np.around(np.array(spike_train[i])*(1./state.dt))#convrt to timestep
+		indices = indices + [1.] #effect of a spike arrives right after spike
+		indices = indices.astype('int') 
+		indices = indices[indices<Nsteps] #+1 could move timestep beyond boundary.
 
 		ST[i,indices] = 1.
 
-	X = np.zeros((lent*Nbasis,Nsteps),dtype='float')
+	X = np.zeros((lent*Nb,Nsteps),dtype='float')
 
-	for i in range(np.shape(basis)[0]):
+	for i in range(Nb):
 
-		exp_i = np.atleast_2d(basis[i,:])
-		X[lent*i:lent*(i+1),:] = signal.fftconvolve(ST,exp_i)[:,:Nsteps]
+		vec_i = np.atleast_2d(basis[i,:]) #need 2d because broadcast to ST shape.
+		X[lent*i:lent*(i+1),:] = signal.fftconvolve(ST,vec_i)[:,:Nsteps] 
 	
 	return X
-	
 
 def likelihood(state):
 
-	MP = MembPot(state)
+	MP = MembPot(state) # defined at the end of this file.
 
-	indices = np.around(np.array(state.output))
+	indices = np.around(np.array(state.output)/state.dt) #convert to time-step index. 
 	indices = indices.astype('int')
 
-	LL = np.sum(MP[indices]) - state.dt*np.sum(np.exp(MP))
+	LL = np.sum(MP[indices]) - state.dt*np.sum(np.exp(MP)) 
+	#the +1 in convolve guarantees a high value of MP at spike time. 
 
-	return LL
+	return LL #log-likelihood
 
-def gradient_NL(state):
+def gradient_NL(state): #first of the gradient.
 
 	Nsteps = int(state.total_time/state.dt)
-	Nb = np.shape(state.basisNL)[0]
+	Nb = np.shape(state.basisNL)[0] #number of basis functions.
 	dt = state.dt
 
 	gr_NL = np.zeros((state.Ng*Nb,Nsteps),dtype='float')
 
-	MP = MembPot(state)
-	MP12 = subMembPot(state)
+	MP = MembPot(state) 
+	MP12 = subMembPot(state) #contains membrane potential in group before NL
 
-	for g in range(state.Ng):
+	for g in range(state.Ng): #loop over compartments/groups
 
-		u = MP12[g,:]
+		u = MP12[g,:] 
 
-		for i in range(Nb-1):
+		for i in range(Nb-1): #for loop to create a stack of NB times MP12[g,:]
+
 			u = np.vstack((MP12[g,:],u))
 
-		gr_NL[g*Nb:(g+1)*Nb,:] = applyNL_2d(state.basisNL,u,state)
+		gr_NL[g*Nb:(g+1)*Nb,:] = applyNL_2d(state.basisNL,u,state) #apply NL to stack.
 
-	sptimes = np.around(np.array(state.output[0])/state.dt)
-	sptimes = sptimes.astype('int')
-	lambd = np.exp(MP)
+	sptimes = np.around(np.array(state.output[0])/state.dt) #conversion to timestep
+	sptimes = sptimes.astype('int') #has to be int to be an array of indices.
+	lambd = np.exp(MP) #MP contains the threshold. 
 
-	gr_NL = np.sum(gr_NL[:,sptimes],axis=1) - dt*np.sum(gr_NL*lambd,axis=1)
+	gr_NL = np.sum(gr_NL[:,sptimes],axis=1) - dt*np.sum(gr_NL*lambd,axis=1) 
+
+	#Before summation, gr_NL is the gradient of the membrane potential.
 
 	return gr_NL
 
-def hessian_NL(state):
+def hessian_NL(state): 
 
-	Nsteps = int(state.total_time/state.dt)
-	Nb = np.shape(state.basisNL)[0]
+	Nsteps = int(state.total_time/state.dt) #Total number of time-steps.
+	Nb = np.shape(state.basisNL)[0] #number of basis functions.
 
-	he_NL = np.zeros((Nb*state.Ng,Nb*state.Ng,Nsteps),dtype='float')
+	he_NL = np.zeros((Nb*state.Ng,Nb*state.Ng,Nsteps),dtype='float') 
 
-	MP = MembPot(state)
-	MP12 = subMembPot(state)
+	MP = MembPot(state) #Membrane potential. Contains threshold, so log of lambda.
+	MP12 = subMembPot(state) # Memb. pot. before NL in compartments.
 	
-	for g in range(state.Ng):
-		for h in range(state.Ng):
+	for g in range(state.Ng): 
+		for h in range(state.Ng): #Double for-loops over compartments.
 
-			if g>=h:
+			if g>=h: #so that computations are not carried out twice.
 
-				ug = np.atleast_2d(MP12[g,:])
+				ug = np.atleast_2d(MP12[g,:]) #need it to "stack".
 				uh = np.atleast_2d(MP12[h,:])
 		
-				ug = np.repeat(ug,Nb,axis=0)
+				ug = np.repeat(ug,Nb,axis=0) # stack before NL.
 				uh = np.repeat(uh,Nb,axis=0)
 
-				ug = applyNL_2d(state.basisNL,ug,state)
+				ug = applyNL_2d(state.basisNL,ug,state) 
 				uh = applyNL_2d(state.basisNL,uh,state)
 				uht = uh.transpose()
 
-				m = np.dot(ug,uht)
-				ddot = np.atleast_3d(m)
+				m = np.dot(ug,uht) #gives a (Nb,Nb) matrix.
+				ddot = np.atleast_3d(m) 
 				ddot = np.repeat(ddot,Nsteps,axis=2)
 
-				he_NL[g*Nb:(g+1)*Nb,h*Nb:(h+1)*Nb,:] = ddot*np.exp(MP)
+				he_NL[g*Nb:(g+1)*Nb,h*Nb:(h+1)*Nb,:] = ddot*np.exp(MP) #times lambda.
 
-	he_NL = -state.dt*np.sum(he_NL,axis=2)
+	he_NL = -state.dt*np.sum(he_NL,axis=2) #sum to make matrix.
 
-	he_NL = 0.5*(he_NL+he_NL.transpose())
+	he_NL = 0.5*(he_NL+he_NL.transpose()) #because hessian is symetric.
 
 	return he_NL
 
-def applyNL(NL,u,state):
+def applyNL(NL,u,state): #crucial piece of code to apply NL to membrane potential.
 
-	dv = (state.bnds[1] - state.bnds[0])*0.00001
-
-	h = copy.copy(np.histogram(u))
+	dv = (state.bnds[1] - state.bnds[0])*0.00001 
 
 	u = u/dv
 	u = np.around(u)
-	u = u.astype('int') + 50000
-	u = NL[u]/dv
-
-	h1 = np.histogram(u)
+	u = u.astype('int') + 50000 #indices need to be recentered. 0mV -> 50000 -> 0mV
+	u = NL[u] # The values in the NL array are in mV.
 
 	return u
 
-def applyNL_2d(NL,u,state):
+def applyNL_2d(NL,u,state): #same thing, but when dimensions are different.
 
 	dv = (state.bnds[1] - state.bnds[0])*0.00001
 
 	u = u/dv
 	u = np.around(u)
-	u = u.astype('int') + 50000
+	u = u.astype('int') + 50000 #need to recenter.
 
-	if len(u.shape)==1:
+	if len(u.shape)==1: #if u is 1D but NL 2D (basis functions for instance)
 
-		res = np.zeros((np.shape(NL)[0],np.size(u)),dtype='float')
+		res = np.zeros((np.shape(NL)[0],np.size(u)),dtype='float') #res = result.
 
 		for i in range(np.shape(NL)[0]):
 
-			res[i,:] = NL[i,u]
+			res[i,:] = NL[i,u] #the values in this array are in mV already.
 
-	else:
+	else: #if u is 2D and NL too.
 		
 		res = np.zeros((np.shape(NL)[0],np.shape(u)[-1]),dtype='float')
 
 		for i in range(np.shape(u)[0]):
 
-			res[i,:] = NL[i,u[i,:]]
+			res[i,:] = NL[i,u[i,:]] #mV
 
 	return res
 
-def gradient_ker(state):
+def gradient_ker(state): 
 
-	Nb = np.shape(state.basisKer)[0]
-	Nsteps = int(state.total_time/state.dt)
-	Nneur  = int(state.N/state.Ng)
-	N_ASP = len(state.knots_ASP)+1
-	Nbnl = np.shape(state.basisNL)[0]
+	Nb = np.shape(state.basisKer)[0]  #number of basis functions for kernels/PSP.
+	Nsteps = int(state.total_time/state.dt) #total number of time steps.
+	Nneur  = int(state.N/state.Ng) # Number of presyn. neurons in a compartments.
+	N_ASP = len(state.knots_ASP)+1 # number of basis functions for ASP.
+	Nbnl = np.shape(state.basisNL)[0] #number of basis functions for NL
 	dt = state.dt
 	output = state.output
 
 	gr_ker = np.zeros((state.Ng*Nb*Nneur+N_ASP+1,Nsteps),dtype='float')
+	#PSP kernels + ASP + threshold.
 
-	MP12 = subMembPot(state)
-	MP = MembPot(state)
-	lamb = np.exp(MP)
+	MP12 = subMembPot(state) #before NL
+	MP = MembPot(state) #after NL and solved
+	lamb = np.exp(MP) #firing rate (MP contains threshold)
 	
-	for g in range(state.Ng):
+	for g in range(state.Ng): #loop over compartments.
 
-		Basis = state.basisKer
+		Basis = state.basisKer 
 
 		X = convolve(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
 
-		nlDer = np.dot(state.paramNL[g*Nbnl:(g+1)*Nbnl],state.basisNLder)
+		nlDer = np.dot(state.paramNL[g*Nbnl:(g+1)*Nbnl],state.basisNLder) 
+		#need derivative of non-linearity.
 
 		gr_ker[g*Nb*Nneur:(g+1)*Nb*Nneur,:] = X*applyNL(nlDer,MP12[g,:],state)
 
 	gr_ker[state.Ng*Nb*Nneur:-1,:] = - convolve(output,state.basisASP,state)
 
-	sptimes = np.around(np.array(state.output[0])/dt)+[1]
-	sptimes = sptimes[sptimes<Nsteps]
+	sptimes = np.around(np.array(state.output[0])/dt) #no +1 or -1 here. it is in   													#convolve(-), and MembPot(-)
 	sptimes = sptimes.astype('int')
 
-	OST = np.zeros(Nsteps)
-
-	OST[sptimes] = 1.
-
 	gr_ker = np.sum(gr_ker[:,sptimes],axis=1) - dt*np.sum(gr_ker*lamb,axis=1)
-
+	
 	gr_ker[-1] = - len(state.output) + dt*np.sum(lamb)
 
 	return gr_ker
@@ -226,20 +225,20 @@ def hessian_ker(state):
 
 	return Hess
 
-def subMembPot(state):
+def subMembPot(state): #membrane potential before NL.
 
-	Nsteps = int(state.total_time/state.dt)
+	Nsteps = int(state.total_time/state.dt) #total number of time steps.
 
 	MP12 = np.zeros((state.Ng,Nsteps),dtype='float')
 
-	Nneur = int(state.N/state.Ng)
-	Nb = state.N_cos_bumps
+	Nneur = int(state.N/state.Ng) #number of neurons in compartment.
+	Nb = state.N_cos_bumps #number of basis function for kernels.
 
 	for g in range(state.Ng):
 
 		Basis = state.basisKer
 
-		X = convolve(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
+		X = convolve(state.input[g*Nneur:(g+1)*Nneur],Basis,state) #+1 in there.
 
 		MP12[g,:] = np.dot(state.paramKer[g*Nneur*Nb:(g+1)*Nneur*Nb],X)
 
@@ -247,44 +246,36 @@ def subMembPot(state):
 
 def MembPot(state):
 
-	Nsteps = int(state.total_time/state.dt)
+	Nsteps = int(state.total_time/state.dt) # total number of time-steps.
 
-	ParKer = state.paramKer
+	ParKer = state.paramKer 
 
 	MP = np.zeros(Nsteps)
 
-	Nneurons = int(state.N/state.Ng)
-	Nbnl = np.shape(state.basisNL)[0]
+	Nneurons = int(state.N/state.Ng) # number of neurons in compartment.
+	Nbnl = np.shape(state.basisNL)[0] # number of basis functions for NL.
 
-	MP12 = subMembPot(state)
+	MP12 = subMembPot(state) 
 
-	for g in range(state.Ng):
+	for g in range(state.Ng): #loop over compartments. 
 
-		Mp_g = MP12[g,:]
+		Mp_g = MP12[g,:] 
+		F = state.basisNL 
 
-		F = state.basisNL
-
-		NL = np.dot(F.transpose(),state.paramNL[g*Nbnl:(g+1)*Nbnl])
+		NL = np.dot(state.paramNL[g*Nbnl:(g+1)*Nbnl],F)
 
 		dv = (state.bnds[1] - state.bnds[0])*0.00001
 
-		h0 = copy.copy(np.histogram(Mp_g))
-
 		Mp_g = Mp_g/dv
-
 		Mp_g = np.around(Mp_g)
-		
 		Mp_g = Mp_g.astype('int') + 50000
-
-		Mp_g = NL[Mp_g]
-
-		h1 = np.histogram(Mp_g)
+		Mp_g = NL[Mp_g] #NL is an array with mV.
 
 		MP = MP + Mp_g
 
-	X = convolve(state.output,state.basisASP,state)
+	X = convolve(state.output,state.basisASP,state) # +1 in there.
 
-	Nb = np.shape(X)[0]
+	Nb = np.shape(X)[0] 
 
 	MP = MP - np.dot(ParKer[(-Nb-1):-1],X) - ParKer[-1]
 
