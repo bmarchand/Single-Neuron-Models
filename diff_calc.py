@@ -41,7 +41,7 @@ def likelihood(state):
 
 	MP = MembPot(state) # defined at the end of this file.
 
-	indices = np.around(np.array(state.output)/state.dt) #convert to time-step index. 
+	indices = np.around(np.array(state.output[0])/state.dt) #convert to time-step index. 
 	indices = indices.astype('int')
 
 	LL = np.sum(MP[indices]) - state.dt*np.sum(np.exp(MP)) 
@@ -189,7 +189,7 @@ def gradient_ker(state):
 
 	gr_ker = np.sum(gr_ker[:,sptimes],axis=1) - dt*np.sum(gr_ker*lamb,axis=1)
 	
-	gr_ker[-1] = - len(state.output) + dt*np.sum(lamb)
+	gr_ker[-1] = - len(state.output[0]) + dt*np.sum(lamb)
 
 	return gr_ker
 
@@ -200,30 +200,93 @@ def hessian_ker(state):
 	Nneur = int(state.N/state.Ng)
 	N_ASP = len(state.knots_ASP)+1
 	Nbnl = np.shape(state.basisNL)[0]
+	Ng = state.Ng
 
-	gr_ker = np.zeros((state.Ng*Nb*Nneur+N_ASP+1,Nsteps),dtype='float')
+	Hess_ker = np.zeros((Ng*Nneur*Nb+N_ASP+1,Ng*Nneur*Nb+N_ASP+1),dtype='float')
 
 	MP12 = subMembPot(state)
 	MP = MembPot(state)
-	output = state.output
+	output = state.output		
+	Basis = state.basisKer 
+	lamb = np.atleast_2d(np.exp(MP)).transpose()
 	
 	for g in range(state.Ng):
 
-		Basis = state.basisKer
+		param = state.paramNL[g*Nbnl:(g+1)*Nbnl]
+		basisder = state.basisNLder
+		basissec = state.basisNLSecDer
+		nlDer = np.dot(param,basisder)
+		nlSecDer = np.dot(param,basissec)
 
-		X = convolve(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
-		
-		nlDer = np.dot(state.paramNL[g*Nbnl:(g+1)*Nbnl],state.basisNLder)
-		
-		gr_ker[g*Nb*Nneur:(g+1)*Nb*Nneur,:] = X*applyNL(nlDer,MP12[g,:],state)
+		X1 = convolve(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
+		v = applyNL(nlDer,MP12[g,:],state)
+		v = np.atleast_2d(v).transpose()
+		u = applyNL(nlSecDer,MP12[g,:],state)
+		u = np.atleast_2d(u).transpose()
 
-	gr_ker[state.Ng*Nb*Nneur:-1] = - convolve(output,state.basisASP,state)
+		X3 = convolve(output,state.basisASP,state)
 
-	gr_ker[-1] = - len(state.output) + state.dt*np.sum(np.exp(MP))
+		Halgam = -state.dt*np.dot(X1,X3.transpose()*v*lamb)	
 
-	Hess = -state.dt*np.dot(gr_ker*np.exp(MP),gr_ker.transpose())
+		Halthet = state.dt*np.sum(X1.transpose()*v*lamb,axis=0)
 
-	return Hess
+		sptimes = np.around(np.array(output[0])/state.dt)
+		sptimes = sptimes.astype('int')
+
+		X1u = X1.transpose()*u
+
+		Hspik = np.dot(X1[:,sptimes],X1u[sptimes,:])
+
+		Hnlder = np.dot(X1,X1.transpose()*v**2)
+		Hnlsecder = np.dot(X1,X1.transpose()*u*lamb)
+
+		Hnosp = state.dt*(Hnlder + Hnlsecder)
+
+		Halpha = Hspik - Hnosp
+
+		Hess_ker[g*Nneur*Nb:(g+1)*Nneur*Nb,-1] = Halthet
+
+		Hess_ker[g*Nneur*Nb:(g+1)*Nneur*Nb,g*Nneur*Nb:(g+1)*Nneur*Nb] = Halpha
+
+		Hess_ker[g*Nneur*Nb:(g+1)*Nneur*Nb,Ng*Nneur*Nb:(Ng*Nneur*Nb+N_ASP)] = Halgam
+
+		for h in range(state.Ng):
+
+			if g<>h:
+
+		  		param1 = state.paramNL[g*Nbnl:(g+1)*Nbnl]
+				param2 = state.paramNL[h*Nbnl:(h+1)*Nbnl]
+	
+				nlDer1 = np.dot(param1,basisder)
+				nlDer2 = np.dot(param2,basisder)
+
+				u = applyNL(nlDer1,MP12[g,:],state)
+				u = np.atleast_2d(u).transpose()
+				v = applyNL(nlDer2,MP12[h,:],state)
+				v = np.atleast_2d(v).transpose()
+
+				X1 = convolve(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
+				X2 = convolve(state.input[h*Nneur:(h+1)*Nneur],Basis,state)
+
+				Halbet = - state.dt*np.dot(X1,X2.transpose()*u*v*lamb)
+
+				Hess_ker[g*Nneur*Nb:(g+1)*Nneur*Nb,h*Nneur*Nb:(h+1)*Nneur*Nb] = Halbet
+
+	Hess_ker[-1,-1] = -state.dt*np.sum(np.exp(MP))
+
+	X3 = convolve(output,state.basisASP,state)
+
+	Hgamthet = state.dt*np.sum(X3*np.exp(MP),axis=1)
+
+	Hgam = -state.dt*np.dot(X3,X3.transpose()*lamb)
+
+	Hess_ker[Ng*Nneur*Nb:(Ng*Nneur*Nb+N_ASP),-1] = Hgamthet
+
+	Hess_ker[Ng*Nneur*Nb:(Ng*Nneur*Nb+N_ASP),Ng*Nneur*Nb:(Ng*Nneur*Nb+N_ASP)] = Hgam
+
+	Hess_ker = 0.5*(Hess_ker.transpose() + Hess_ker)	
+
+	return Hess_ker
 
 def subMembPot(state): #membrane potential before NL.
 

@@ -3,11 +3,11 @@ import numpy as np
 import matplotlib.pylab as plt
 import random
 
-def alpha_fun(tau_r,tau_d,dt,L,control='off'):
+def alpha_fun(tau_r,tau_d,dt,L,control='off'): #alpha functions for kernels.
+ 
+	x = np.arange(int(L/dt)) #abcsiss vector in timesteps.
 
-	x = np.arange(int(L/dt))
-
-	tau_r_steps = tau_r/dt
+	tau_r_steps = tau_r/dt # in time steps.
 	tau_d_steps = tau_d/dt
 
 	y = np.exp(-x/tau_r_steps)-np.exp(-x/tau_d_steps)
@@ -15,15 +15,14 @@ def alpha_fun(tau_r,tau_d,dt,L,control='off'):
 	y = y/np.sum(y*dt)
 
 	if control=='on':
-		plt.plot(x*dt,y)
+		plt.plot(x*dt,y) #x*dt is in ms.
 		plt.show()
 
 	return y
 
-def exp_fun(tau,dt,L,control='off'):
+def exp_fun(tau,dt,L,control='off'): #exponential function for ASP.
 
-	x = np.arange(int(L/dt))
-
+	x = np.arange(int(L/dt)) 
 
 	tau_steps = tau/dt
 
@@ -35,23 +34,23 @@ def exp_fun(tau,dt,L,control='off'):
 
 	return y
 
-def jitter(r,per=0.1):
+def jitter(r,per=0.1): #add 10% of noise to r.
 
 	return r*(1+per*2*(random.random()-0.5))
 
-def spike_train(neuron):
+def spike_train(neuron): #generate Poisson spike train.
 
 	train = []
 
 	while np.sum(train)<neuron.total_time:
 
-		tmp_t = np.random.exponential(scale=1000./jitter(neuron.in_rate))
+		tmp_t = np.random.exponential(scale=1000./jitter(neuron.in_rate)) #ISI
 
 		tmp_t = neuron.dt*int(tmp_t/neuron.dt)
 
 		train.append(tmp_t)
 
-	train = np.cumsum(train[:-1])
+	train = np.cumsum(train[:-1]) 
 
 	train = list(train)
 
@@ -64,15 +63,14 @@ def sigmoid(l,x):
 	return y
 
 
-def CosineBasis(K,T,dt,a=1.8,c=0.):
+def CosineBasis(K,T,dt,a=1.8,c=0.): #cosine function on logarithm scale. truncated.
 	
-	F = np.zeros((K,T/dt),dtype='float')
+	F = np.zeros((K,T/dt),dtype='float') 
 	I = np.arange(T/dt)*dt
 
-	for k in range(K):
+	for k in range(K): 
 
 		lb = math.exp((k/2.-1)*math.pi/a) - c
-
 		ub = math.exp((k/2.+1)*math.pi/a) - c
 
 		cos_on_log = np.cos(a*np.log(I[(I>=lb)&(I<ub)]+c)-k*0.5*math.pi)
@@ -112,7 +110,7 @@ def NaturalSpline(knots,bnds):
 
 	return F
 
-def Tents(knots,bnds,total_length):
+def Tents(knots,bnds,total_length):#uses knots and bnds to keep same syntax as splines
 
 	Nb = len(knots)+2
 
@@ -131,7 +129,7 @@ def Tents(knots,bnds,total_length):
 
 	return F
 
-def DerTents(knots,bnds,total_length):
+def DerTents(knots,bnds,total_length):#derivative of tent basis functions.for gradient
 
 	F = np.zeros((len(knots)+1,total_length),dtype='float')
 
@@ -192,7 +190,7 @@ def SplineParamsforId(knots,bnds):
 	
 	return params
 
-def Ker2Param(ker,basis):
+def Ker2Param(ker,basis): #CRUCIAL. 
 
 	B = basis
 
@@ -205,9 +203,9 @@ def Ker2Param(ker,basis):
 	for i in range(np.shape(ker)[0]):
 
 		bbtm1 = np.linalg.inv(np.dot(B,B.transpose()))
-		yxt = np.dot(ker[i,:],B.transpose())
+		yxt = np.dot(ker[i,:],B.transpose()) 
 
-		paramKer[i*Nb:(i+1)*Nb] = np.dot(yxt,bbtm1)
+		paramKer[i*Nb:(i+1)*Nb] = np.dot(yxt,bbtm1) #analytic formula of RSS minimum.
 	
 	return paramKer
 

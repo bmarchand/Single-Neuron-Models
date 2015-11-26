@@ -113,6 +113,7 @@ class FitParameters: # FitParameters is one component of the TwoLayerModel class
 	bnds_ASP = [0,500./dt] # domain over which ASP defined. [timesteps]
 	basisNL = fun.Tents(knots,bnds,100000.) #basis for NL (Tents instead of splines)
 	basisNLder = fun.DerTents(knots,bnds,100000.) #derivative of above. for gradient.
+	basisNLSecDer = fun.SecDerTents(knots,bnds,100000.) 
 	basisKer = fun.CosineBasis(N_cos_bumps,len_cos_bumps,dt) #basis for kernels.
 	basisASP = fun.Tents(knots_ASP,bnds_ASP,1000.) #basis for ASP (Tents not splines)
 	tol = 10**-6 #(Tol over gradient norm below which you stop optimizing)
@@ -136,10 +137,10 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 		self.output = [neuron.output]
 		self.paramKer[-1] = -math.log(neuron.output_rate) #initialize for fit.
 
-	def fit(self):
+	def fit(self): #fit with block cooridinate ascend. not working yet.
 
 		self.paramNL,self.paramKer,self.likelihood = optim.BlockCoordinateAscent(self)
 
-	def plot(self):
+	def plot(self): #under-developed plot method.
 
 		print self.likelihood,self.paramKer

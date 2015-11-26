@@ -113,6 +113,7 @@ class FitParameters: # FitParameters is one component of the TwoLayerModel class
 	bnds_ASP = [0,500./dt] # domain over which ASP defined. [timesteps]
 	basisNL = fun.Tents(knots,bnds,100000.) #basis for NL (Tents instead of splines)
 	basisNLder = fun.DerTents(knots,bnds,100000.) #derivative of above. for gradient.
+	basisNLSecDer = fun.SecDerTents(knots,bnds,100000.) #second derivative. 0 here.
 	basisKer = fun.CosineBasis(N_cos_bumps,len_cos_bumps,dt) #basis for kernels.
 	basisASP = fun.Tents(knots_ASP,bnds_ASP,1000.) #basis for ASP (Tents not splines)
 	tol = 10**-6 #(Tol over gradient norm below which you stop optimizing)
