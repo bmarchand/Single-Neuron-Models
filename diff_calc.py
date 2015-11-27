@@ -178,11 +178,12 @@ def gradient_ker(state):
 		X = convolve(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
 
 		nlDer = np.dot(state.paramNL[g*Nbnl:(g+1)*Nbnl],state.basisNLder) 
+
 		#need derivative of non-linearity.
 
 		gr_ker[g*Nb*Nneur:(g+1)*Nb*Nneur,:] = X*applyNL(nlDer,MP12[g,:],state)
 
-	gr_ker[state.Ng*Nb*Nneur:-1,:] = - convolve(output,state.basisASP,state)
+	gr_ker[state.Ng*Nb*Nneur:-1,:] = convolve(output,state.basisASP,state)
 
 	sptimes = np.around(np.array(state.output[0])/dt) #no +1 or -1 here. it is in   													#convolve(-), and MembPot(-)
 	sptimes = sptimes.astype('int')
@@ -220,6 +221,7 @@ def hessian_ker(state):
 
 		X1 = convolve(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
 		v = applyNL(nlDer,MP12[g,:],state)
+
 		v = np.atleast_2d(v).transpose()
 		u = applyNL(nlSecDer,MP12[g,:],state)
 		u = np.atleast_2d(u).transpose()
@@ -235,9 +237,10 @@ def hessian_ker(state):
 
 		X1u = X1.transpose()*u
 
-		Hspik = np.dot(X1[:,sptimes],X1u[sptimes,:])
+		Hspik = state.dt*np.dot(X1[:,sptimes],X1u[sptimes,:])
 
-		Hnlder = np.dot(X1,X1.transpose()*v**2)
+		Hnlder = np.dot(X1,X1.transpose()*(v**2)*lamb)
+
 		Hnlsecder = np.dot(X1,X1.transpose()*u*lamb)
 
 		Hnosp = state.dt*(Hnlder + Hnlsecder)

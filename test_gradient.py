@@ -28,7 +28,7 @@ state.paramKer[:state.N*Nb] = fun.Ker2Param(Ker,F)
 #parameters corresponding to the kernels that were defined. obtained from RSS-minim.
 												   
 expfun = fun.exp_fun(neuron.ASP_time,neuron.dt,neuron.ASP_total)/neuron.delta_v
-expfun = expfun*neuron.ASP_size
+expfun = expfun*neuron.ASP_size/neuron.delta_v
 
 #same thing as for the PSP kernels. This way the values inside the exponential are 
 # the same, even with delta_v=1
@@ -57,20 +57,29 @@ gradientk = copy.copy(state.gradient_ker) #keep these in mem for linear approxim
 paramk = copy.copy(state.paramKer)
 l0 = copy.copy(state.likelihood)
 
+hessianNL = copy.copy(state.hessian_NL)
+gradientNL = copy.copy(state.gradient_NL)
+paramnl = copy.copy(state.paramNL) 
+
 res = [] #actual likelihood curve on particular line in parameter space
 res_l = [] #linear approximation with gradient
 res_q = [] #quadratic approximation with gradient and hessian.
 
+res_nl = []
+res_nl_l = []
+res_nl_q = []
+
 for r in range(80,100,1):
 
 	print r
-	state.paramKer[-1] = (r/90.)*paramk[-1] #new params (line around our point)
+	state.paramKer = (r/90.)*paramk #new params (line around our point)
 	state.update()	# parameters have changed. Gradients and hessians are updated.
 	res = res + [state.likelihood] #actual likelihood
-	res_l = res_l + [l0 + gradientk[-1]*(state.paramKer[-1] - paramk[-1])] #linear appr.
-	lin_term = gradientk[-1]*(state.paramKer[-1] - paramk[-1])
-	dif = state.paramKer[-1]-paramk[-1]
-	quad_term = dif*hessiank[-1,-1]*dif/2
+	res_l = res_l + [l0 + np.dot(gradientk,(state.paramKer - paramk))] #linear appr
+
+	lin_term = np.dot(gradientk.transpose(),(state.paramKer - paramk))
+	dif = state.paramKer - paramk
+	quad_term = np.dot(dif.transpose(),np.dot(hessiank,dif))/2
 	res_q = res_q + [l0 + lin_term + quad_term]
 
 res = np.array(res)

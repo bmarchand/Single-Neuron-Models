@@ -147,6 +147,12 @@ def DerTents(knots,bnds,total_length):#derivative of tent basis functions.for gr
 
 	return F
 
+def SecDerTents(knots,bnds,total_length):
+
+	F = np.zeros((len(knots)+1,total_length),dtype='float')
+
+	return F	
+
 def DerNaturalSpline(knots,bnds):
 
 	dv = 0.001*(bnds[1]-bnds[0])

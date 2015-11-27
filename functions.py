@@ -133,17 +133,19 @@ def DerTents(knots,bnds,total_length):#derivative of tent basis functions.for gr
 
 	F = np.zeros((len(knots)+1,total_length),dtype='float')
 
+	dv = (bnds[1] - bnds[0])*0.00001
+
 	Nb = len(knots)+2
 
 	delta = total_length/(Nb-2)
 
-	F[0,:delta] = -1.
-	F[-1,-delta:] = 1.
+	F[0,:delta] = -1./dv
+	F[-1,-delta:] = 1./dv
 
 	for i in range(1,Nb-2,1):
 
-		F[i,delta*i:delta*(i+1)] = -1.
-		F[i,delta*(i-1):delta*i] = 1.
+		F[i,delta*i:delta*(i+1)] = -1./dv
+		F[i,delta*(i-1):delta*i] = 1./dv
 
 	return F
 
