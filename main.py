@@ -122,12 +122,14 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 
 	def __init__(self): #initialized as a GLM (not working yet)
 
-		paramId = np.zeros(np.shape(self.basisNL)[0]) #zeros so far (not fitting yet).
-		#paramId = fun.SplineParamsforId(self.knots,self.bnds)
-		#Id = np.atleast_2d(np.arange(1000.))
-		#paramId = fun.Ker2Param(Id,self.basisNL)
+		dv = (self.bnds[1] - self.bnds[0])*0.00001 
+		v = np.arange(self.bnds[0],self.bnds[1],dv)
+		v = np.atleast_2d(v)
+
+		para = fun.Ker2Param(v,self.basisNL)
+
+		self.paramNL = np.hstack((para,para)) 
 		
-		self.paramNL = np.hstack((paramId,paramId))
 		Ncosbumps = self.N_cos_bumps #just to make it shorter
 		self.paramKer = np.zeros(int(self.N*Ncosbumps+self.N_knots_ASP+1.+1.)) 
 

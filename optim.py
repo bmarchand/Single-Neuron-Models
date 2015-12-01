@@ -31,7 +31,7 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 	def iter_ker(self): 
 
 		invH = np.linalg.inv(self.hessian_ker)
-
+		
 		self.paramKer = self.paramKer - np.dot(invH,self.gradient_ker)
 
 	def iter_NL(self):
@@ -74,14 +74,13 @@ def BlockCoordinateAscent(Model):
 			print "count ker:", cnt
 			cnt = cnt + 1
 
-			plt.plot(state.NL)
-			plt.show()
-	
 			state.iter_ker()
 
 			state.update()
 			
 			norm_ker = abs(np.sum(state.gradient_ker**2))
+
+			print state.likelihood, state.paramKer
 
 		norm_NL = abs(np.sum(state.gradient_NL**2))
 
@@ -91,8 +90,7 @@ def BlockCoordinateAscent(Model):
 			state.update()
 
 			norm_NL = abs(np.sum(state.gradient_NL**2))
-
-		
+	
 	return state.paramNL,state.paramKer,state.likelihood
 
 	

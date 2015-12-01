@@ -82,10 +82,12 @@ def gradient_NL(state): #first of the gradient.
 
 def hessian_NL(state): 
 
+	dv = (state.bnds[1] - state.bnds[0])*0.00001
+
 	Nsteps = int(state.total_time/state.dt) #Total number of time-steps.
 	Nb = np.shape(state.basisNL)[0] #number of basis functions.
 
-	he_NL = np.zeros((Nb*state.Ng,Nb*state.Ng,Nsteps),dtype='float') 
+	he_NL = np.zeros((Nb*state.Ng,Nb*state.Ng),dtype='float') 
 
 	MP = MembPot(state) #Membrane potential. Contains threshold, so log of lambda.
 	MP12 = subMembPot(state) # Memb. pot. before NL in compartments.
@@ -95,23 +97,23 @@ def hessian_NL(state):
 
 			if g>=h: #so that computations are not carried out twice.
 
-				ug = np.atleast_2d(MP12[g,:]) #need it to "stack".
-				uh = np.atleast_2d(MP12[h,:])
-		
-				ug = np.repeat(ug,Nb,axis=0) # stack before NL.
-				uh = np.repeat(uh,Nb,axis=0)
+				ug = MP12[g,:] #need it to "stack".
+				uh = MP12[h,:]
+
+				for i in range(Nb-1): #for loop to create a stack of NB times MP12[g,:]
+					ug = np.vstack((MP12[g,:],ug))
+					uh = np.vstack((MP12[h,:],uh))
 
 				ug = applyNL_2d(state.basisNL,ug,state) 
 				uh = applyNL_2d(state.basisNL,uh,state)
+
 				uht = uh.transpose()
 
-				m = np.dot(ug,uht) #gives a (Nb,Nb) matrix.
-				ddot = np.atleast_3d(m) 
-				ddot = np.repeat(ddot,Nsteps,axis=2)
+				lamb = np.atleast_2d(np.exp(MP))
 
-				he_NL[g*Nb:(g+1)*Nb,h*Nb:(h+1)*Nb,:] = ddot*np.exp(MP) #times lambda.
+				m = np.dot(ug*lamb,uht) #gives a (Nb,Nb) matrix.
 
-	he_NL = -state.dt*np.sum(he_NL,axis=2) #sum to make matrix.
+				he_NL[g*Nb:(g+1)*Nb,h*Nb:(h+1)*Nb] = - state.dt*m
 
 	he_NL = 0.5*(he_NL+he_NL.transpose()) #because hessian is symetric.
 
