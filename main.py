@@ -64,7 +64,7 @@ class SpikingMechanism: #gather parameters for spiking.
 class RunParameters:
 
 	dt = 1. #[ms] same as above. dunno why defined twice (attribute access maybe).
-	total_time = 10000. #total simulation time
+	total_time = 5000. #total simulation time
 	N = 12. #number of presynaptic neurons
 	
 class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters): 

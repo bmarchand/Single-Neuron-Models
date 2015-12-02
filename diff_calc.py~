@@ -44,6 +44,12 @@ def likelihood(state):
 	indices = np.around(np.array(state.output[0])/state.dt) #convert to time-step index. 
 	indices = indices.astype('int')
 
+	Nsteps = int(state.total_time/state.dt)
+
+	OST = np.zeros(Nsteps)
+
+	OST[indices] = 1.
+	
 	LL = np.sum(MP[indices]) - state.dt*np.sum(np.exp(MP)) 
 	#the +1 in convolve guarantees a high value of MP at spike time. 
 
@@ -115,8 +121,6 @@ def hessian_NL(state):
 
 				he_NL[g*Nb:(g+1)*Nb,h*Nb:(h+1)*Nb] = - state.dt*m
 
-	print np.shape(he_NL)
-
 	he_NL = 0.5*(he_NL+he_NL.transpose()) #because hessian is symetric.
 
 	return he_NL
@@ -187,7 +191,7 @@ def gradient_ker(state):
 
 		gr_ker[g*Nb*Nneur:(g+1)*Nb*Nneur,:] = X*applyNL(nlDer,MP12[g,:],state)
 
-	gr_ker[state.Ng*Nb*Nneur:-1,:] = convolve(output,state.basisASP,state)
+	gr_ker[state.Ng*Nb*Nneur:-1,:] = - convolve(output,state.basisASP,state)
 
 	sptimes = np.around(np.array(state.output[0])/dt) #no +1 or -1 here. it is in   													#convolve(-), and MembPot(-)
 	sptimes = sptimes.astype('int')

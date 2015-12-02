@@ -64,7 +64,7 @@ class SpikingMechanism: #gather parameters for spiking.
 class RunParameters:
 
 	dt = 1. #[ms] same as above. dunno why defined twice (attribute access maybe).
-	total_time = 10000. #total simulation time
+	total_time = 60000. #total simulation time
 	N = 12. #number of presynaptic neurons
 	
 class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters): 
@@ -128,7 +128,7 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 
 		para = fun.Ker2Param(v,self.basisNL)
 
-		state.paramNL = np.hstack((para,para)) 
+		self.paramNL = np.hstack((para,para)) 
 		
 		Ncosbumps = self.N_cos_bumps #just to make it shorter
 		self.paramKer = np.zeros(int(self.N*Ncosbumps+self.N_knots_ASP+1.+1.)) 

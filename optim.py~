@@ -28,11 +28,11 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 
 		Np = int(np.size(Model.paramNL)*0.5) #number of basis functions per NL.
 
-	def iter_ker(self): 
+	def iter_ker(self,rate): 
 
 		invH = np.linalg.inv(self.hessian_ker)
 		
-		self.paramKer = self.paramKer - np.dot(invH,self.gradient_ker)
+		self.paramKer = self.paramKer - rate*np.dot(invH,self.gradient_ker)
 
 	def iter_NL(self):
 
@@ -74,13 +74,18 @@ def BlockCoordinateAscent(Model):
 			print "count ker:", cnt
 			cnt = cnt + 1
 
-			state.iter_ker()
+			if cnt<10:
+				rate = 0.1
+			else:
+				rate = 1.
+
+			state.iter_ker(rate)
 
 			state.update()
 			
 			norm_ker = abs(np.sum(state.gradient_ker**2))
 
-			print state.likelihood
+			print state.likelihood, norm_ker
 
 		norm_NL = abs(np.sum(state.gradient_NL**2))
 
