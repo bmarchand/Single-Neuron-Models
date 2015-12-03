@@ -4,6 +4,8 @@ neuron = TwoLayerNeuron()
 
 neuron.run()
 
+print "ran !"
+
 model = TwoLayerModel()
 
 model.add_data(neuron)

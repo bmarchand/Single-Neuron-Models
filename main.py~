@@ -117,6 +117,12 @@ class FitParameters: # FitParameters is one component of the TwoLayerModel class
 	basisKer = fun.CosineBasis(N_cos_bumps,len_cos_bumps,dt) #basis for kernels.
 	basisASP = fun.Tents(knots_ASP,bnds_ASP,1000.) #basis for ASP (Tents not splines)
 	tol = 10**-6 #(Tol over gradient norm below which you stop optimizing)
+
+	def plot(self):
+
+		for i in range(np.shape(self.basisKer)[0]):
+			plt.plot(self.basisKer[i,:])
+		plt.show()
  
 class TwoLayerModel(FitParameters,RunParameters): #model object.
 

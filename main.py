@@ -64,7 +64,7 @@ class SpikingMechanism: #gather parameters for spiking.
 class RunParameters:
 
 	dt = 1. #[ms] same as above. dunno why defined twice (attribute access maybe).
-	total_time = 5000. #total simulation time
+	total_time = 4000. #total simulation time
 	N = 12. #number of presynaptic neurons
 	
 class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters): 
@@ -117,6 +117,12 @@ class FitParameters: # FitParameters is one component of the TwoLayerModel class
 	basisKer = fun.CosineBasis(N_cos_bumps,len_cos_bumps,dt) #basis for kernels.
 	basisASP = fun.Tents(knots_ASP,bnds_ASP,1000.) #basis for ASP (Tents not splines)
 	tol = 10**-6 #(Tol over gradient norm below which you stop optimizing)
+
+	def plot(self):
+
+		for i in range(np.shape(self.basisKer)[0]):
+			plt.plot(self.basisKer[i,:])
+		plt.show()
  
 class TwoLayerModel(FitParameters,RunParameters): #model object.
 

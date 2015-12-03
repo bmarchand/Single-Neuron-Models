@@ -5,6 +5,8 @@ import copy
 import diff_calc as diff
 import main
 import matplotlib.pylab as plt
+import math
+import time
 
 class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 #kind of the "microstate", as in statistical physics, of the model. The model itself
@@ -36,9 +38,9 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 
 	def iter_NL(self):
 
-		invH = np.linalg.inv(hessian_nl)
+		norm = math.sqrt(abs(np.sum(self.gradient_NL**2)))
 
-		self.paramNL = self.paramNL - np.dot(invH,self.gradient_NL)
+		self.paramNL = self.paramNL + self.gradient_NL/norm
 
 	def update(self):
 
@@ -65,36 +67,73 @@ def BlockCoordinateAscent(Model):
 	
 	while norm>Model.tol:
 
+		fig = plt.figure()
+
+		plt.ion()
+
 		n0 = copy.copy(norm)
 
 		norm_ker = abs(np.sum(state.gradient_ker**2))
 
-		while norm_ker > Model.tol:
+		diff = 1.
+
+		while diff > 0:
+
+			l0 = copy.copy(state.likelihood)
 
 			print "count ker:", cnt
 			cnt = cnt + 1
 
-			if cnt<20:
-				rate = 0.1
+			plt.plot(np.dot(state.paramKer[:5],state.basisKer))		
+
+			plt.draw()			
+
+			time.sleep(0.05)
+
+			if cnt<15:
+	
+				rate = 0.2
+
 			else:
 				rate = 1.
 
 			state.iter_ker(rate)
 
 			state.update()
+
+			diff = state.likelihood - l0
 			
 			norm_ker = abs(np.sum(state.gradient_ker**2))
 
-			print state.likelihood, norm_ker, Model.tol
+			print state.likelihood, norm_ker
 
-		norm_NL = abs(np.sum(state.gradient_NL**2))
+		diff = 1.
 
-		while norm_NL > Model.tol:
+		cnt = 0.
+
+		plt.close()
+		plt.figure()
+		plt.ion()
+
+		while diff > 0.:
+
+			plt.plot(np.dot(state.paramNL[:11],state.basisNL))
+			plt.draw()
+
+			cnt = cnt +1
+
+			l0 = copy.copy(state.likelihood)
 
 			state.iter_NL()
 			state.update()
 
 			norm_NL = abs(np.sum(state.gradient_NL**2))
+
+			diff = state.likelihood - l0
+
+			print "count NL: ",cnt
+
+			print state.likelihood
 	
 	return state.paramNL,state.paramKer,state.likelihood
 

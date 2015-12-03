@@ -2,6 +2,8 @@ import numpy as np
 from scipy import signal
 import copy
 import matplotlib.pylab as plt
+from scipy import weave
+from scipy.weave import converters
 
 def convolve(spike_train,basis,state):
 	"""Each spike train has to be convoluted with all the basis functions. 
@@ -35,6 +37,69 @@ def convolve(spike_train,basis,state):
 		vec_i = np.atleast_2d(basis[i,:]) #need 2d because broadcast to ST shape.
 		X[lent*i:lent*(i+1),:] = signal.fftconvolve(ST,vec_i)[:,:Nsteps] 
 	
+	return X
+
+def convolve_c(spike_train,basis,state):
+
+	Nsteps = int(state.total_time/state.dt)
+
+	Nb = copy.copy(np.shape(basis)[0])
+	
+	lb = np.shape(basis)[1]
+
+	lent = len(spike_train)
+
+	lengths = np.array(map(len,spike_train))
+
+	st = map(np.array,spike_train)
+	
+	def multiply(a):
+		return a*(1./state.dt)
+
+	st = map(multiply,st)
+	st = map(np.around,st)
+	st = map(np.uint16,st)	
+
+	X = np.zeros((Nb*lent,Nsteps),dtype='double')
+
+	code = """
+	#include <math.h>
+
+	
+	int N = lent;
+	int nb = Nb;
+	int Lb = lb;
+	int ii,jj,kk,ll;
+
+	for (ii = 0; ii < N; ii++) {
+		for (jj = 0; jj<Nb; jj++){
+			for (kk = 0; kk < lengths[ii]; kk++){
+
+				int bnddo;
+				int bndup;
+				int t;
+				t = st[ii,kk];
+				bndup = t + Lb + 1;
+				bnddo = t + 1;
+				if (N<bndup+1){
+					 bndup = N;
+							  } 
+
+				for (ll = bnddo; ll < bndup; ll++){
+					int b = ii*jj;
+					int indi;
+					indi = bndup - bnddo;
+					double r = basis[jj,indi];
+					X[b,ll] = X[b,ll] + r; 												   }			
+												 }
+						     	  }
+						        }
+	"""	
+		
+	variables = ['Nb','lent','Nsteps','basis','st','lengths','lb','X']		
+
+	weave.inline(code,variables)
+
 	return X
 
 def likelihood(state):
@@ -183,7 +248,7 @@ def gradient_ker(state):
 
 		Basis = state.basisKer 
 
-		X = convolve(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
+		X = convolve_c(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
 
 		nlDer = np.dot(state.paramNL[g*Nbnl:(g+1)*Nbnl],state.basisNLder) 
 
@@ -191,9 +256,9 @@ def gradient_ker(state):
 
 		gr_ker[g*Nb*Nneur:(g+1)*Nb*Nneur,:] = X*applyNL(nlDer,MP12[g,:],state)
 
-	gr_ker[state.Ng*Nb*Nneur:-1,:] = - convolve(output,state.basisASP,state)
+	gr_ker[state.Ng*Nb*Nneur:-1,:] = - convolve_c(output,state.basisASP,state)
 
-	sptimes = np.around(np.array(state.output[0])/dt) #no +1 or -1 here. it is in   													#convolve(-), and MembPot(-)
+	sptimes = np.around(np.array(state.output[0])/dt) #no +1 or -1 here. it is in   													#convolve_c(-), and MembPot(-)
 	sptimes = sptimes.astype('int')
 
 	gr_ker = np.sum(gr_ker[:,sptimes],axis=1) - dt*np.sum(gr_ker*lamb,axis=1)
@@ -227,14 +292,14 @@ def hessian_ker(state):
 		nlDer = np.dot(param,basisder)
 		nlSecDer = np.dot(param,basissec)
 
-		X1 = convolve(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
+		X1 = convolve_c(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
 		v = applyNL(nlDer,MP12[g,:],state)
 
 		v = np.atleast_2d(v).transpose()
 		u = applyNL(nlSecDer,MP12[g,:],state)
 		u = np.atleast_2d(u).transpose()
 
-		X3 = convolve(output,state.basisASP,state)
+		X3 = convolve_c(output,state.basisASP,state)
 
 		Halgam = -state.dt*np.dot(X1,X3.transpose()*v*lamb)	
 
@@ -276,8 +341,8 @@ def hessian_ker(state):
 				v = applyNL(nlDer2,MP12[h,:],state)
 				v = np.atleast_2d(v).transpose()
 
-				X1 = convolve(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
-				X2 = convolve(state.input[h*Nneur:(h+1)*Nneur],Basis,state)
+				X1 = convolve_c(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
+				X2 = convolve_c(state.input[h*Nneur:(h+1)*Nneur],Basis,state)
 
 				Halbet = - state.dt*np.dot(X1,X2.transpose()*u*v*lamb)
 
@@ -310,7 +375,7 @@ def subMembPot(state): #membrane potential before NL.
 
 		Basis = state.basisKer
 
-		X = convolve(state.input[g*Nneur:(g+1)*Nneur],Basis,state) #+1 in there.
+		X = convolve_c(state.input[g*Nneur:(g+1)*Nneur],Basis,state) #+1 in there.
 
 		MP12[g,:] = np.dot(state.paramKer[g*Nneur*Nb:(g+1)*Nneur*Nb],X)
 
@@ -345,7 +410,7 @@ def MembPot(state):
 
 		MP = MP + Mp_g
 
-	X = convolve(state.output,state.basisASP,state) # +1 in there.
+	X = convolve_c(state.output,state.basisASP,state) # +1 in there.
 
 	Nb = np.shape(X)[0] 
 

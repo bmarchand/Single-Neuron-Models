@@ -24,6 +24,13 @@ Ker[:,:Tk] = neuron.PSP_size*neuron.synapses.ker/neuron.delta_v
 #absolute size of the kernels and threshold. hence the division by delta_v here.
 
 state.paramKer[:state.N*Nb] = fun.Ker2Param(Ker,F) 
+
+Kerr = np.dot(state.paramKer[:5],F)
+
+plt.plot(Kerr)
+plt.plot(Ker[0,:])
+plt.show()
+
 #parameters corresponding to the kernels that were defined. obtained from RSS-minim.
 												   
 expfun = fun.exp_fun(neuron.ASP_time,neuron.dt,neuron.ASP_total)
@@ -67,20 +74,7 @@ res_nl = []
 res_nl_l = []
 res_nl_q = []
 
-for r in range(80,100,1):
 
-	print "NL: ",r
-
-	state.paramNL = (r/90.)*paramnl
-	state.update()
-	res_nl = res_nl + [state.likelihood]
-
-	res_nl_l = res_nl_l + [l0 + np.dot(gradientNL,(state.paramNL - paramnl))]
-
-	lin_term = np.dot(gradientNL.transpose(),(state.paramNL - paramnl))
-	dif = state.paramNL - paramnl
-	quad_term = np.dot(dif.transpose(),np.dot(hessianNL,dif))/2
-	res_nl_q = res_nl_q + [l0 + lin_term + quad_term]
 
 res_nl = np.array(res_nl)
 res_nl_l = np.array(res_nl_l)
@@ -100,14 +94,14 @@ state.update()
 for r in range(80,100,1):
 
 	print r
-	state.paramKer[-6:] = (r/90.)*paramk[-6:] #new params (line around our point)
+	state.paramKer[0] = (r/90.)*paramk[0] #new params (line around our point)
 	state.update()	# parameters have changed. Gradients and hessians are updated.
 	res = res + [state.likelihood] #actual likelihood
-	res_l = res_l + [l0 + np.dot(gradientk[-6:],(state.paramKer[-6:] - paramk[-6:]))] #linear appr
+	res_l = res_l + [l0 + np.dot(gradientk[0],(state.paramKer[0] - paramk[0]))] #linear appr
 
-	lin_term = np.dot(gradientk[-6:],(state.paramKer[-6:] - paramk[-6:]))
-	dif = state.paramKer[-6:] - paramk[-6:]
-	quad_term = np.dot(dif.transpose(),np.dot(hessiank[-6:,-6:],dif))/2
+	lin_term = np.dot(gradientk[0],(state.paramKer[0] - paramk[0]))
+	dif = state.paramKer[0] - paramk[0]
+	quad_term = np.dot(dif.transpose(),np.dot(hessiank[0,0],dif))/2
 	res_q = res_q + [l0 + lin_term + quad_term]
 
 res = np.array(res)
