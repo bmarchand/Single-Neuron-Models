@@ -1,0 +1,56 @@
+# Python imports
+import cython
+import numpy as np
+
+# Type declarations.
+TYPE_FLOAT = np.float64
+TYPE_INT   = np.int
+
+# cimports
+cimport numpy as cnp
+# Cython compile-time declarations
+ctypedef cnp.float64_t TYPE_FLOAT_t
+ctypedef cnp.int_t TYPE_INT_t
+
+def convolve_cython_wrapper(spike_train, basis, state):
+
+    Nsteps = int(state.total_time/state.dt)
+    Nb = np.shape(basis)[0]
+    lent = len(spike_train)
+    X = np.zeros((Nb * lent, Nsteps), dtype=TYPE_FLOAT)
+
+    for l in range(len(spike_train)):
+        convolve_cython(
+            (np.array(spike_train[l], dtype=TYPE_FLOAT)/state.dt).astype(TYPE_INT),
+            X,
+            basis,
+            Nsteps,
+            l
+        )
+
+    return X
+
+@cython.boundscheck(False)
+@cython.wraparound(False)    
+@cython.cdivision(True)
+cdef convolve_cython(
+        cnp.ndarray[TYPE_INT_t, ndim=1] spike_train,
+        cnp.ndarray[TYPE_FLOAT_t, ndim=2] X,
+        cnp.ndarray[TYPE_FLOAT_t, ndim=2] basis,
+        TYPE_INT_t steps,
+        TYPE_INT_t startidx
+        ):
+    
+    cdef Py_ssize_t b, t, i
+    cdef TYPE_INT_t bndlo, bndup
+
+    cdef TYPE_INT_t lb = basis.shape[1]
+
+    for b in range(basis.shape[0]):
+        for t in range(spike_train.shape[0]):
+
+            bndlo = spike_train[t] + 1
+            bndup = min(bndlo + lb, steps)
+
+            for i in range(bndup-bndlo):
+                X[startidx * b, bndlo + i] += basis[b, i]
