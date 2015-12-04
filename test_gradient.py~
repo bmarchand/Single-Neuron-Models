@@ -74,20 +74,7 @@ res_nl = []
 res_nl_l = []
 res_nl_q = []
 
-for r in range(80,100,1):
 
-	print "NL: ",r
-
-	state.paramNL = (r/90.)*paramnl
-	state.update()
-	res_nl = res_nl + [state.likelihood]
-
-	res_nl_l = res_nl_l + [l0 + np.dot(gradientNL,(state.paramNL - paramnl))]
-
-	lin_term = np.dot(gradientNL.transpose(),(state.paramNL - paramnl))
-	dif = state.paramNL - paramnl
-	quad_term = np.dot(dif.transpose(),np.dot(hessianNL,dif))/2
-	res_nl_q = res_nl_q + [l0 + lin_term + quad_term]
 
 res_nl = np.array(res_nl)
 res_nl_l = np.array(res_nl_l)
