@@ -76,6 +76,14 @@ res_nl = np.array(res_nl)
 res_nl_l = np.array(res_nl_l)
 res_nl_q = np.array(res_nl_q)
 
+plt.plot(res_nl) 
+plt.plot(res_nl_l)
+plt.plot(res_nl_q)
+plt.show()
+
+plt.plot(res_nl-res_nl_q)
+plt.show()
+
 state.paramNL = paramnl
 state.update()
 

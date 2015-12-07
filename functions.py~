@@ -62,30 +62,6 @@ def sigmoid(l,x):
 
 	return y
 
-def DerSigmoid(l,x):
-
-	first = l[2]*l[0]*np.exp(-l[2]*x)/((l[1]+np.exp(-l[2]*x))**2)
-
-	second = l[2]*l[0]*np.exp(l[2]*x)/((l[1]+np.exp(l[2]*x))**2)
-
-	y = 0.5*(first + second)
-	
-	return y 
-
-def PartialDerSigmoid(l,x):
-
-	a = sigmoid(l,x)/l[0]
-
-	b = (l[0]/2.)*(-(1./(l[1]+np.exp(-l[2]*x))**2)+(1./(l[1]+np.exp(l[2]*x))**2))
-
-	firstc = (l[2]*np.exp(-l[2]*x))/(l[1]+np.exp(-l[2]*x))**2
-
-	secondc = ((l[2]*np.exp(l[2]*x))/(l[1]+np.exp(l[2]*x))**2)
-
-	c = (l[0]/2.)*( firstc + secondc )
-
-	return [a,b,c]
-
 
 def CosineBasis(K,T,dt,a=1.8,c=0.): #cosine function on logarithm scale. truncated.
 	
@@ -157,19 +133,17 @@ def DerTents(knots,bnds,total_length):#derivative of tent basis functions.for gr
 
 	F = np.zeros((len(knots)+1,total_length),dtype='float')
 
-	dv = (bnds[1] - bnds[0])*0.00001
-
 	Nb = len(knots)+2
 
 	delta = total_length/(Nb-2)
 
-	F[0,:delta] = -1./dv
-	F[-1,-delta:] = 1./dv
+	F[0,:delta] = -1.
+	F[-1,-delta:] = 1.
 
 	for i in range(1,Nb-2,1):
 
-		F[i,delta*i:delta*(i+1)] = -1./dv
-		F[i,delta*(i-1):delta*i] = 1./dv
+		F[i,delta*i:delta*(i+1)] = -1.
+		F[i,delta*(i-1):delta*i] = 1.
 
 	return F
 

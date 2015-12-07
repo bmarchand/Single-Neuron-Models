@@ -111,24 +111,30 @@ class FitParameters: # FitParameters is one component of the TwoLayerModel class
 	bnds = [-100.,100.] #[mV] domain over which NL is defined
 	knots_ASP = range(int(100./dt),int(500./dt),100) #knots for ASP (unused)
 	bnds_ASP = [0,500./dt] # domain over which ASP defined. [timesteps]
-	#basisNL = fun.Tents(knots,bnds,100000.) #basis for NL (Tents instead of splines)
-	#basisNLder = fun.DerTents(knots,bnds,100000.) #derivative of above. for gradient.
-	#basisNLSecDer = fun.SecDerTents(knots,bnds,100000.) #second derivative. 0 here.
+	basisNL = fun.Tents(knots,bnds,100000.) #basis for NL (Tents instead of splines)
+	basisNLder = fun.DerTents(knots,bnds,100000.) #derivative of above. for gradient.
+	basisNLSecDer = fun.SecDerTents(knots,bnds,100000.) #second derivative. 0 here.
 	basisKer = fun.CosineBasis(N_cos_bumps,len_cos_bumps,dt) #basis for kernels.
 	basisASP = fun.Tents(knots_ASP,bnds_ASP,1000.) #basis for ASP (Tents not splines)
 	tol = 10**-6 #(Tol over gradient norm below which you stop optimizing)
+
+	def plot(self):
+
+		for i in range(np.shape(self.basisKer)[0]):
+			plt.plot(self.basisKer[i,:])
+		plt.show()
  
 class TwoLayerModel(FitParameters,RunParameters): #model object.
 
 	def __init__(self): #initialized as a GLM (not working yet)
 
-		#dv = (self.bnds[1] - self.bnds[0])*0.00001 
-		#v = np.arange(self.bnds[0],self.bnds[1],dv)
-		#v = np.atleast_2d(v)
+		dv = (self.bnds[1] - self.bnds[0])*0.00001 
+		v = np.arange(self.bnds[0],self.bnds[1],dv)
+		v = np.atleast_2d(v)
 
-		#para = fun.Ker2Param(v,self.basisNL)
+		para = fun.Ker2Param(v,self.basisNL)
 
-		self.paramNL = [[10000.,1,0.0004],[[10000.,1,0.0004]]]
+		self.paramNL = np.hstack((para,para)) 
 		
 		Ncosbumps = self.N_cos_bumps #just to make it shorter
 		self.paramKer = np.zeros(int(self.N*Ncosbumps+self.N_knots_ASP+1.+1.)) 
