@@ -76,17 +76,17 @@ def SecDerSigmoid(l,x):
 
 	first = - l[2]*np.exp(-l[2]*x)/(l[1] + np.exp(-l[2]*x))**2
 
-	second = - 2.*np.exp(-l[2]*x)/(l[1] + np.exp(-l[2]*x))**3
+	second = 2.*l[2]*np.exp(-2*l[2]*x)/(l[1] + np.exp(-l[2]*x))**3
 
 	third = l[2]*np.exp(l[2]*x)/(l[1] + np.exp(l[2]*x))**2
 	
-	fourth = - 2.*np.exp(l[2]*x)/(l[1] + np.exp(l[2]*x))**3
+	fourth = - 2.*l[2]*np.exp(2*l[2]*x)/(l[1] + np.exp(l[2]*x))**3
 
 	y = 0.5*l[0]*l[2]*(first + second + third + fourth)
 
 	return y
 
-def PartialDerSigmoid(l,x):
+def ParDerSigmoid(l,x):
 
 	a = sigmoid(l,x)/l[0]
 

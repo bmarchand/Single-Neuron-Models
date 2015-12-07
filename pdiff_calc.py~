@@ -6,6 +6,7 @@ from scipy import weave
 from scipy.weave import converters
 import os
 import convolves as conv
+import functions as fun
 
 os.chdir('/home/bmarchan/LNLN/my_cython/')
 
@@ -34,10 +35,10 @@ def likelihood(state):
 def gradient_NL(state): #first of the gradient.
 
 	Nsteps = int(state.total_time/state.dt)
-	Nb = np.shape(state.basisNL)[0] #number of basis functions.
 	dt = state.dt
 
 	lengths = map(len,state.paramNL)
+	l0 = lengths[0]
 	Np = np.sum(lengths)
 
 	gr_NL = np.zeros((Np,Nsteps),dtype='float')
@@ -51,7 +52,7 @@ def gradient_NL(state): #first of the gradient.
 
 		dabc = fun.ParDerSigmoid(state.paramNL[g],u)
 
-		grNL[g*lengths[g]:(g+1)*lengths[g+1]] = np.array(dabc)
+		gr_NL[g*l0:(g+1)*l0] = np.array(dabc)
 
 	sptimes = np.around(np.array(state.output[0])/state.dt) #conversion to timestep
 	sptimes = sptimes.astype('int') #has to be int to be an array of indices.
@@ -156,11 +157,13 @@ def hessian_ker(state):
 	
 	for g in range(state.Ng):
 
-
-
 		X1 = cv(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
 
+		plt.plot(MP12[g,:])
+		plt.show()
+
 		v = fun.DerSigmoid(state.paramNL[g],MP12[g,:])
+
 		v = np.atleast_2d(v).transpose()
 
 		u = fun.SecDerSigmoid(state.paramNL[g],MP12[g,:])
@@ -243,7 +246,7 @@ def subMembPot(state): #membrane potential before NL.
 
 	return MP12
 
-def PMempPot(state):
+def PMembPot(state):
 
 	Nsteps = int(state.total_time/state.dt)
 	ParKer = state.paramKer
@@ -257,7 +260,7 @@ def PMempPot(state):
 
 		Mp_g = MP12[g,:]
 	
-		l = state.paramNL		
+		l = state.paramNL[g]	
 
 		Mp_g = fun.sigmoid(l,Mp_g)
 
@@ -270,8 +273,5 @@ def PMempPot(state):
 	MP = MP - np.dot(ParKer[(-Nb-1):-1],X) - ParKer[-1]
 
 	return MP
-
-
-
 
 

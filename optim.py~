@@ -29,17 +29,9 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 		self.likelihood = diff.likelihood(Model)
 
 	def iter_ker(self,rate): 
-
-		try:
 		
-			invH = np.linalg.inv(self.hessian_ker)
-			self.paramKer = self.paramKer - rate*np.dot(invH,self.gradient_ker)
-
-		except np.linalg.LinAlgError:	
-
-			print "Error there was. Unfortunate this is."
-
-			self.paramKer = self.paramKer + 0.00000001*self.gradient_ker
+		invH = np.linalg.pinv(self.hessian_ker)
+		self.paramKer = self.paramKer - rate*np.dot(invH,self.gradient_ker)
 
 	def iter_NL(self):
 
@@ -55,7 +47,7 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 
 	def update(self):
 
-		self.membrane_potential = diff.MembPot(self)
+		self.membrane_potential = diff.PMembPot(self)
 
 		self.likelihood = diff.likelihood(self)
 		
@@ -98,12 +90,12 @@ def BlockCoordinateAscent(Model):
 
 			time.sleep(0.005)
 
-			if cnt<15:
+			if cnt<10:
 	
-				rate = 0.05
+				rate = 0.4
 
 			else:
-				rate = 1.
+				rate = 0.8
 
 			state.iter_ker(rate)
 
@@ -125,7 +117,8 @@ def BlockCoordinateAscent(Model):
 
 		while diff > 0.:
 
-			plt.plot(np.dot(state.paramNL[:11],state.basisNL))
+			v = np.arange(-50.,50.,1.)
+			plt.plot(v,fun.sigmoid(state.paramNL[0],v))
 			plt.draw()
 
 			cnt = cnt +1
@@ -145,5 +138,3 @@ def BlockCoordinateAscent(Model):
 	
 	return state.paramNL,state.paramKer,state.likelihood
 
-	
-	

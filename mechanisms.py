@@ -57,7 +57,6 @@ def SpikeGeneration(neuron,control):#neuron contains input spike-trains and a sp
 			plt.plot(x,x)
 			plt.show()
 
-
 		MP = MP + fun.sigmoid(neuron.non_linearity[g],MP_part) 
 
 	for t in range(Nsteps): #spike generation itself.
