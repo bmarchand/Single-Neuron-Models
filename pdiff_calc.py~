@@ -15,7 +15,7 @@ os.chdir('/home/bmarchan/LNLN/')
 
 def likelihood(state):
 
-	MP = MembPot(state) # defined at the end of this file.
+	MP = PMembPot(state) # defined at the end of this file.
 
 	indices = np.around(np.array(state.output[0])/state.dt) #convert to time-step index. 
 	indices = indices.astype('int')
@@ -37,20 +37,21 @@ def gradient_NL(state): #first of the gradient.
 	Nb = np.shape(state.basisNL)[0] #number of basis functions.
 	dt = state.dt
 
-	gr_NL = np.zeros((state.Ng*Nb,Nsteps),dtype='float')
+	lengths = map(len,state.paramNL)
+	Np = np.sum(lengths)
 
-	MP = MembPot(state) 
+	gr_NL = np.zeros((Np,Nsteps),dtype='float')
+
+	MP = PMembPot(state) 
 	MP12 = subMembPot(state) #contains membrane potential in group before NL
 
 	for g in range(state.Ng): #loop over compartments/groups
 
 		u = MP12[g,:] 
 
-		for i in range(Nb-1): #for loop to create a stack of NB times MP12[g,:]
+		dabc = fun.ParDerSigmoid(state.paramNL[g],u)
 
-			u = np.vstack((MP12[g,:],u))
-
-		gr_NL[g*Nb:(g+1)*Nb,:] = applyNL_2d(state.basisNL,u,state) #apply NL to stack.
+		grNL[g*lengths[g]:(g+1)*lengths[g+1]] = np.array(dabc)
 
 	sptimes = np.around(np.array(state.output[0])/state.dt) #conversion to timestep
 	sptimes = sptimes.astype('int') #has to be int to be an array of indices.
@@ -64,14 +65,15 @@ def gradient_NL(state): #first of the gradient.
 
 def hessian_NL(state): 
 
-	dv = (state.bnds[1] - state.bnds[0])*0.00001
-
 	Nsteps = int(state.total_time/state.dt) #Total number of time-steps.
-	Nb = np.shape(state.basisNL)[0] #number of basis functions.
 
-	he_NL = np.zeros((Nb*state.Ng,Nb*state.Ng),dtype='float') 
+	lengths = map(len,state.paramNL)
+	Np = np.sum(lengths)
+	l0 = lengths[0]
 
-	MP = MembPot(state) #Membrane potential. Contains threshold, so log of lambda.
+	he_NL = np.zeros((Np,Np),dtype='float') 
+
+	MP = PMembPot(state) #Membrane potential. Contains threshold, so log of lambda.
 	MP12 = subMembPot(state) # Memb. pot. before NL in compartments.
 	
 	for g in range(state.Ng): 
@@ -82,61 +84,18 @@ def hessian_NL(state):
 				ug = MP12[g,:] #need it to "stack".
 				uh = MP12[h,:]
 
-				for i in range(Nb-1): #for loop to create a stack of NB times MP12[g,:]
-					ug = np.vstack((MP12[g,:],ug))
-					uh = np.vstack((MP12[h,:],uh))
-
-				ug = applyNL_2d(state.basisNL,ug,state) 
-				uh = applyNL_2d(state.basisNL,uh,state)
-
-				uht = uh.transpose()
+				dabcg = np.array(fun.ParDerSigmoid(state.paramNL[g],ug))
+				dabch = np.array(fun.ParDerSigmoid(state.paramNL[h],uh))
 
 				lamb = np.atleast_2d(np.exp(MP))
 
-				m = np.dot(ug*lamb,uht) #gives a (Nb,Nb) matrix.
+				m = np.dot(dabcg*lamb,dabch.transpose()) #gives a (Nb,Nb) matrix.
 
-				he_NL[g*Nb:(g+1)*Nb,h*Nb:(h+1)*Nb] = - state.dt*m
+				he_NL[g*l0:(g+1)*l0,h*l0:(h+1)*l0] = - state.dt*m
 
 	he_NL = 0.5*(he_NL+he_NL.transpose()) #because hessian is symetric.
 
 	return he_NL
-
-def applyNL(NL,u,state): #crucial piece of code to apply NL to membrane potential.
-
-	dv = (state.bnds[1] - state.bnds[0])*0.00001 
-
-	u = u/dv
-	u = np.around(u)
-	u = u.astype('int') + 50000 #indices need to be recentered. 0mV -> 50000 -> 0mV
-	u = NL[u] # The values in the NL array are in mV.
-
-	return u
-
-def applyNL_2d(NL,u,state): #same thing, but when dimensions are different.
-
-	dv = (state.bnds[1] - state.bnds[0])*0.00001
-
-	u = u/dv
-	u = np.around(u)
-	u = u.astype('int') + 50000 #need to recenter.
-
-	if len(u.shape)==1: #if u is 1D but NL 2D (basis functions for instance)
-
-		res = np.zeros((np.shape(NL)[0],np.size(u)),dtype='float') #res = result.
-
-		for i in range(np.shape(NL)[0]):
-
-			res[i,:] = NL[i,u] #the values in this array are in mV already.
-
-	else: #if u is 2D and NL too.
-		
-		res = np.zeros((np.shape(NL)[0],np.shape(u)[-1]),dtype='float')
-
-		for i in range(np.shape(u)[0]):
-
-			res[i,:] = NL[i,u[i,:]] #mV
-
-	return res
 
 def gradient_ker(state): 
 
@@ -144,7 +103,6 @@ def gradient_ker(state):
 	Nsteps = int(state.total_time/state.dt) #total number of time steps.
 	Nneur  = int(state.N/state.Ng) # Number of presyn. neurons in a compartments.
 	N_ASP = len(state.knots_ASP)+1 # number of basis functions for ASP.
-	Nbnl = np.shape(state.basisNL)[0] #number of basis functions for NL
 	dt = state.dt
 	output = state.output
 
@@ -152,7 +110,7 @@ def gradient_ker(state):
 	#PSP kernels + ASP + threshold.
 
 	MP12 = subMembPot(state) #before NL
-	MP = MembPot(state) #after NL and solved
+	MP = PMembPot(state) #after NL and solved
 	lamb = np.exp(MP) #firing rate (MP contains threshold)
 	
 	for g in range(state.Ng): #loop over compartments.
@@ -163,11 +121,11 @@ def gradient_ker(state):
 
 		X = cv(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
 
-		nlDer = np.dot(state.paramNL[g*Nbnl:(g+1)*Nbnl],state.basisNLder) 
+		nlDer_to_u = fun.DerSigmoid(state.paramNL[g],MP12[g,:])
 
 		#need derivative of non-linearity.
 
-		gr_ker[g*Nb*Nneur:(g+1)*Nb*Nneur,:] = X*applyNL(nlDer,MP12[g,:],state)
+		gr_ker[g*Nb*Nneur:(g+1)*Nb*Nneur,:] = X*nlDer_to_u
 
 	gr_ker[state.Ng*Nb*Nneur:-1,:] = - cv(output,state.basisASP,state)
 
@@ -186,30 +144,26 @@ def hessian_ker(state):
 	Nsteps = int(state.total_time/state.dt)
 	Nneur = int(state.N/state.Ng)
 	N_ASP = len(state.knots_ASP)+1
-	Nbnl = np.shape(state.basisNL)[0]
 	Ng = state.Ng
 
 	Hess_ker = np.zeros((Ng*Nneur*Nb+N_ASP+1,Ng*Nneur*Nb+N_ASP+1),dtype='float')
 
 	MP12 = subMembPot(state)
-	MP = MembPot(state)
+	MP = PMembPot(state)
 	output = state.output		
 	Basis = state.basisKer 
 	lamb = np.atleast_2d(np.exp(MP)).transpose()
 	
 	for g in range(state.Ng):
 
-		param = state.paramNL[g*Nbnl:(g+1)*Nbnl]
-		basisder = state.basisNLder
-		basissec = state.basisNLSecDer
-		nlDer = np.dot(param,basisder)
-		nlSecDer = np.dot(param,basissec)
+
 
 		X1 = cv(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
-		v = applyNL(nlDer,MP12[g,:],state)
 
+		v = fun.DerSigmoid(state.paramNL[g],MP12[g,:])
 		v = np.atleast_2d(v).transpose()
-		u = applyNL(nlSecDer,MP12[g,:],state)
+
+		u = fun.SecDerSigmoid(state.paramNL[g],MP12[g,:])
 		u = np.atleast_2d(u).transpose()
 
 		X3 = cv(output,state.basisASP,state)
@@ -243,15 +197,10 @@ def hessian_ker(state):
 
 			if g<>h:
 
-		  		param1 = state.paramNL[g*Nbnl:(g+1)*Nbnl]
-				param2 = state.paramNL[h*Nbnl:(h+1)*Nbnl]
-	
-				nlDer1 = np.dot(param1,basisder)
-				nlDer2 = np.dot(param2,basisder)
+				u = fun.DerSigmoid(state.paramNL[g],MP12[g,:])
+				v = fun.DerSigmoid(state.paramNL[h],MP12[h,:])
 
-				u = applyNL(nlDer1,MP12[g,:],state)
 				u = np.atleast_2d(u).transpose()
-				v = applyNL(nlDer2,MP12[h,:],state)
 				v = np.atleast_2d(v).transpose()
 
 				X1 = cv(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
@@ -323,41 +272,6 @@ def PMempPot(state):
 	return MP
 
 
-def MembPot(state):
 
-	Nsteps = int(state.total_time/state.dt) # total number of time-steps.
-
-	ParKer = state.paramKer 
-
-	MP = np.zeros(Nsteps)
-
-	Nneurons = int(state.N/state.Ng) # number of neurons in compartment.
-	Nbnl = np.shape(state.basisNL)[0] # number of basis functions for NL.
-
-	MP12 = subMembPot(state) 
-
-	for g in range(state.Ng): #loop over compartments. 
-
-		Mp_g = MP12[g,:] 
-		F = state.basisNL 
-
-		NL = np.dot(state.paramNL[g*Nbnl:(g+1)*Nbnl],F)
-
-		dv = (state.bnds[1] - state.bnds[0])*0.00001
-
-		Mp_g = Mp_g/dv
-		Mp_g = np.around(Mp_g)
-		Mp_g = Mp_g.astype('int') + 50000
-		Mp_g = NL[Mp_g] #NL is an array with mV.
-
-		MP = MP + Mp_g
-
-	X = cv(state.output,state.basisASP,state) # +1 in there.
-
-	Nb = np.shape(X)[0] 
-
-	MP = MP - np.dot(ParKer[(-Nb-1):-1],X) - ParKer[-1]
-
-	return MP
 
 

@@ -27,10 +27,6 @@ state.paramKer[:state.N*Nb] = fun.Ker2Param(Ker,F)
 
 Kerr = np.dot(state.paramKer[:5],F)
 
-plt.plot(Kerr)
-plt.plot(Ker[0,:])
-plt.show()
-
 #parameters corresponding to the kernels that were defined. obtained from RSS-minim.
 												   
 expfun = fun.exp_fun(neuron.ASP_time,neuron.dt,neuron.ASP_total)

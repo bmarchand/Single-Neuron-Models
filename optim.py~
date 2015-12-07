@@ -2,7 +2,7 @@ import numpy as np
 import functions as fun
 from scipy import signal
 import copy
-import diff_calc as diff
+import pdiff_calc as diff
 import main
 import matplotlib.pylab as plt
 import math
@@ -28,28 +28,34 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 
 		self.likelihood = diff.likelihood(Model)
 
-		Np = int(np.size(Model.paramNL)*0.5) #number of basis functions per NL.
-
 	def iter_ker(self,rate): 
 
-		invH = np.linalg.inv(self.hessian_ker)
+		try:
 		
-		self.paramKer = self.paramKer - rate*np.dot(invH,self.gradient_ker)
+			invH = np.linalg.inv(self.hessian_ker)
+			self.paramKer = self.paramKer - rate*np.dot(invH,self.gradient_ker)
+
+		except np.linalg.LinAlgError:	
+
+			print "Error there was. Unfortunate this is."
+
+			self.paramKer = self.paramKer + 0.00000001*self.gradient_ker
 
 	def iter_NL(self):
 
-		invH = np.linalg.inv(self.hessian_NL)
+		invH = np.linalg.pinv(self.hessian_NL)
 
-		norm = math.sqrt(abs(np.sum(self.gradient_NL**2)))
+		for g in range(len(self.paramNL)):
 
-		self.paramNL = self.paramNL + self.gradient_NL/norm
+			Np = len(self.paramNL[g])
+
+			change = np.dot(invH,self.gradient_NL)[g*Np:(g+1)*Np]
+
+			self.paramNL[g] = self.paramNL[g] - change
 
 	def update(self):
 
 		self.membrane_potential = diff.MembPot(self)
-
-		Np = int(np.size(self.paramNL)*0.5)
-		self.NL = np.dot(self.paramNL[:Np],self.basisNL)
 
 		self.likelihood = diff.likelihood(self)
 		
@@ -90,11 +96,11 @@ def BlockCoordinateAscent(Model):
 
 			plt.draw()			
 
-			time.sleep(0.05)
+			time.sleep(0.005)
 
 			if cnt<15:
 	
-				rate = 0.2
+				rate = 0.05
 
 			else:
 				rate = 1.

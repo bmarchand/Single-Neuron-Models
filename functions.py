@@ -62,6 +62,44 @@ def sigmoid(l,x):
 
 	return y
 
+def DerSigmoid(l,x):
+
+	first = l[2]*l[0]*np.exp(-l[2]*x)/((l[1]+np.exp(-l[2]*x))**2)
+
+	second = l[2]*l[0]*np.exp(l[2]*x)/((l[1]+np.exp(l[2]*x))**2)
+
+	y = 0.5*(first + second)
+	
+	return y 
+
+def SecDerSigmoid(l,x):
+
+	first = - l[2]*np.exp(-l[2]*x)/(l[1] + np.exp(-l[2]*x))**2
+
+	second = - 2.*np.exp(-l[2]*x)/(l[1] + np.exp(-l[2]*x))**3
+
+	third = l[2]*np.exp(l[2]*x)/(l[1] + np.exp(l[2]*x))**2
+	
+	fourth = - 2.*np.exp(l[2]*x)/(l[1] + np.exp(l[2]*x))**3
+
+	y = 0.5*l[0]*l[2]*(first + second + third + fourth)
+
+	return y
+
+def PartialDerSigmoid(l,x):
+
+	a = sigmoid(l,x)/l[0]
+
+	b = (l[0]/2.)*(-(1./(l[1]+np.exp(-l[2]*x))**2)+(1./(l[1]+np.exp(l[2]*x))**2))
+
+	firstc = (l[2]*np.exp(-l[2]*x))/(l[1]+np.exp(-l[2]*x))**2
+
+	secondc = ((l[2]*np.exp(l[2]*x))/(l[1]+np.exp(l[2]*x))**2)
+
+	c = (l[0]/2.)*( firstc + secondc )
+
+	return [a,b,c]
+
 
 def CosineBasis(K,T,dt,a=1.8,c=0.): #cosine function on logarithm scale. truncated.
 	
