@@ -50,7 +50,8 @@ class SpikingMechanism: #gather parameters for spiking.
 
 	dt = 1. #[ms]
 	compartments = 2 #number of subgroups. each of them has a non-linearity.
-	non_linearity = [[100,1.,0.04],[100.,1.,0.04]] #params for NL (sigmoids)
+	non_linearity = np.array([[-80.,160.,1.,0.0125],[-80.,160.,1.,0.0125]])
+	#non_linearity = np.array([[-20.,40.,1.,0.05],[-20.,40.,1.,0.05]]) #params for NL (sigmoids)
 	threshold = 30. #bio-inspired threshold value.
 	PSP_size = 25. # mV: Roughly std of the memb. pot. in a compartment before NL 	  
 	ASP_size = 20. # [mV] size of After-Spike-Potential (ASP)
@@ -63,8 +64,8 @@ class SpikingMechanism: #gather parameters for spiking.
 
 class RunParameters:
 
-	dt = 1. #[ms] same as above. dunno why defined twice (attribute access maybe).
-	total_time = 600000. #total simulation time
+		 #[ms] same as above. dunno why defined twice (attribute access maybe).
+	total_time = 120000. #total simulation time
 	N = 12. #number of presynaptic neurons
 	
 class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters): 
@@ -104,24 +105,33 @@ class FitParameters: # FitParameters is one component of the TwoLayerModel class
 	N = 12  # need to define it several times for access purposes.
 	Ng = 2 # number of nsub_groups
 	N_cos_bumps = 5 #number of PSP(ker) basis functions.
-	len_cos_bumps = 500. #ms. total length of the basis functions 
+	len_cos_bumps = 200. #ms. total length of the basis functions 
 	N_knots_ASP = 4.# number of knots for natural spline for ASP (unused)
 	N_knots = 10. # number of knots for NL (unused)
 	knots = range(-60,70,13) #knots for NL (unused)
 	bnds = [-100.,100.] #[mV] domain over which NL is defined
-	knots_ASP = range(int(100./dt),int(500./dt),100) #knots for ASP (unused)
+	knots_ASP = range(int(100./dt),int(500./dt),int(100/dt)) #knots for ASP (unused)
 	bnds_ASP = [0,500./dt] # domain over which ASP defined. [timesteps]
-	basisKer = fun.CosineBasis(N_cos_bumps,len_cos_bumps,dt) #basis for kernels.
-	basisASP = fun.Tents(knots_ASP,bnds_ASP,1000.) #basis for ASP (Tents not splines)
+	basisKer = fun.CosineBasis(N_cos_bumps,len_cos_bumps,dt)[1:,:] #basis for kernels.
+	basisASP = fun.Tents(knots_ASP,bnds_ASP,1000./dt) #basis for ASP (Tents not splines)
 	tol = 10**-6 #(Tol over gradient norm below which you stop optimizing)
+
+	def plot_basis(self):
+
+		b = self.basisKer
+
+		for i in range(b.shape[0]):
+
+			plt.plot(b[i,:])
+		plt.show()
  
 class TwoLayerModel(FitParameters,RunParameters): #model object.
 
 	def __init__(self): #initialized as a GLM (not working yet)
 
-		self.paramNL = [[10000.,1,0.0004],[10000.,1,0.0004]]
+		self.paramNL = np.array([[-80.,160.,1.,0.0125],[-80.,160.,1.,0.0125]])
 		
-		Ncosbumps = self.N_cos_bumps #just to make it shorter
+		Ncosbumps = self.basisKer.shape[0] #just to make it shorter
 		self.paramKer = np.zeros(int(self.N*Ncosbumps+self.N_knots_ASP+1.+1.)) 
 
 	def add_data(self,neuron): #import data from neuron
@@ -137,3 +147,5 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 	def plot(self): #under-developed plot method.
 
 		print self.likelihood,self.paramKer
+
+

@@ -25,8 +25,6 @@ Ker[:,:Tk] = neuron.PSP_size*neuron.synapses.ker/neuron.delta_v
 
 state.paramKer[:state.N*Nb] = fun.Ker2Param(Ker,F) 
 
-Kerr = np.dot(state.paramKer[:5],F)
-
 #parameters corresponding to the kernels that were defined. obtained from RSS-minim.
 												   
 expfun = fun.exp_fun(neuron.ASP_time,neuron.dt,neuron.ASP_total)
@@ -39,7 +37,7 @@ basASP = state.basisASP
 
 state.paramKer[state.N*Nb:-1] = fun.Ker2Param(expfun,basASP) #RSS minimization
 
-state.paramNL = [[100.,1.,0.04],[100.,1.,0.04]]
+state.paramNL = np.array([[-20.,40.,1.,0.05],[-20.,40.,1.,0.05]])
 
 state.update() #update() calculates gradients and hessians from the params.
 
@@ -47,10 +45,6 @@ hessiank = copy.copy(state.hessian_ker)
 gradientk = copy.copy(state.gradient_ker) #keep these in mem for linear approximation
 paramk = copy.copy(state.paramKer)
 l0 = copy.copy(state.likelihood)
-
-hessian_nl = copy.copy(state.hessian_NL)
-gradient_nl = copy.copy(state.gradient_NL)
-param_nl = copy.copy(state.paramNL)
 
 res_nl = []
 res_nl_l = []
@@ -89,41 +83,4 @@ plt.show()
 
 plt.plot(res-res_q)
 plt.show()
-
-res_nl = []
-res_nl_l = []
-res_nl_q = []
-
-for r in range(80,100,1):
-
-	print r
-	
-	state.paramNL = (r/90.)*np.array(param_nl)
-	state.update()
-
-	res_nl = res_nl + [state.likelihood]
-	
-	res_nl_l = res_nl_l + [l0 + np.dot(gradient_nl,(state.paramNL - param_nl))]
-
-	lin_term = np.dot(gradient_NL,(state.paramNL - param_nl))
-	dif = state.paramNL - param_nl
-	
-	quad_term = np.dot(dif.transpose(),np.dot(hessian_nl,dif))/2.
-
-	res_nl_q = res_nl_q + [l0 + lin_term + quad_term]
-
-res_nl = np.array(res_nl)
-res_nl_l = np.array(res_nl_l)
-res_nl_q = np.array(res_nl_q)
-
-plt.plot(res_nl)
-plt.plot(res_nl_l)
-plt.plot(res_nl_q)
-plt.show()
-
-plt.plot(res_nl - res_nl_q)
-plt.show()
-
-
-
 

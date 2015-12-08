@@ -29,15 +29,12 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 		self.likelihood = diff.likelihood(Model)
 
 	def iter_ker(self,rate): 
-		
+
 		invH = np.linalg.pinv(self.hessian_ker)
+
 		self.paramKer = self.paramKer - rate*np.dot(invH,self.gradient_ker)
 
 	def iter_NL(self):
-
-		plt.matshow(self.hessian_NL)
-		plt.colorbar()
-		plt.show()
 
 		invH = np.linalg.pinv(self.hessian_NL)
 
@@ -45,7 +42,7 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 
 			Np = len(self.paramNL[g])
 
-			change = np.dot(invH,self.gradient_NL)[g*Np:(g+1)*Np]
+			change = 0.1*np.dot(invH,self.gradient_NL)[g*Np:(g+1)*Np]
 
 			self.paramNL[g] = self.paramNL[g] - change
 
@@ -81,35 +78,30 @@ def BlockCoordinateAscent(Model):
 
 		diff = 1.
 
-		while diff > 0:
+		while norm_ker > Model.tol:
 
 			l0 = copy.copy(state.likelihood)
 
 			print "count ker:", cnt
-			cnt = cnt + 1
+			cnt = cnt + 1		
 
-			plt.plot(np.dot(state.paramKer[:5],state.basisKer))		
-
+			plt.plot(np.dot(state.paramKer[:4],state.basisKer))		
 			plt.draw()			
-
 			time.sleep(0.005)
 
 			if cnt<10:
-	
-				rate = 0.4
-
-			else:
 				rate = 0.8
+			else:
+				rate = 0.9
 
 			state.iter_ker(rate)
-
 			state.update()
 
 			diff = state.likelihood - l0
 			
 			norm_ker = abs(np.sum(state.gradient_ker**2))
 
-			print state.likelihood, norm_ker
+			print state.likelihood, norm_ker, "threshold: ", state.paramKer[-1]
 
 		diff = 1.
 

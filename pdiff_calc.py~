@@ -37,9 +37,9 @@ def gradient_NL(state): #first of the gradient.
 	Nsteps = int(state.total_time/state.dt)
 	dt = state.dt
 
-	lengths = map(len,state.paramNL)
-	l0 = lengths[0]
-	Np = np.sum(lengths)
+	npnl = state.paramNL.shape[1]
+
+	Np = np.size(state.paramNL)
 
 	gr_NL = np.zeros((Np,Nsteps),dtype='float')
 
@@ -50,9 +50,9 @@ def gradient_NL(state): #first of the gradient.
 
 		u = MP12[g,:] 
 
-		dabc = fun.ParDerSigmoid(state.paramNL[g],u)
+		dabcd = fun.ParDerSigmoid(state.paramNL[g],u)
 
-		gr_NL[g*l0:(g+1)*l0] = np.array(dabc)
+		gr_NL[g*npnl:(g+1)*npnl,:] = np.array(dabcd)
 
 	sptimes = np.around(np.array(state.output[0])/state.dt) #conversion to timestep
 	sptimes = sptimes.astype('int') #has to be int to be an array of indices.
@@ -68,9 +68,9 @@ def hessian_NL(state):
 
 	Nsteps = int(state.total_time/state.dt) #Total number of time-steps.
 
-	lengths = map(len,state.paramNL)
-	Np = np.sum(lengths)
-	l0 = lengths[0]
+	npnl = state.paramNL.shape[1]
+
+	Np = state.paramNL.size
 
 	he_NL = np.zeros((Np,Np),dtype='float') 
 
@@ -85,14 +85,14 @@ def hessian_NL(state):
 				ug = MP12[g,:] #need it to "stack".
 				uh = MP12[h,:]
 
-				dabcg = np.array(fun.ParDerSigmoid(state.paramNL[g],ug))
-				dabch = np.array(fun.ParDerSigmoid(state.paramNL[h],uh))
+				dabcdg = np.array(fun.ParDerSigmoid(state.paramNL[g],ug))
+				dabcdh = np.array(fun.ParDerSigmoid(state.paramNL[h],uh))
 
 				lamb = np.atleast_2d(np.exp(MP))
 
-				m = np.dot(dabcg*lamb,dabch.transpose()) #gives a (Nb,Nb) matrix.
+				m = np.dot(dabcdg*lamb,dabcdh.transpose()) #gives a (Nb,Nb) matrix.
 
-				he_NL[g*l0:(g+1)*l0,h*l0:(h+1)*l0] = - state.dt*m
+				he_NL[g*npnl:(g+1)*npnl,h*npnl:(h+1)*npnl] = - state.dt*m
 
 	he_NL = 0.5*(he_NL+he_NL.transpose()) #because hessian is symetric.
 
@@ -128,6 +128,8 @@ def gradient_ker(state):
 
 		gr_ker[g*Nb*Nneur:(g+1)*Nb*Nneur,:] = X*nlDer_to_u
 
+	c = cv(output,state.basisASP,state)
+
 	gr_ker[state.Ng*Nb*Nneur:-1,:] = - cv(output,state.basisASP,state)
 
 	sptimes = np.around(np.array(state.output[0])/dt) #no +1 or -1 here. it is in   													#cv(-), and MembPot(-)
@@ -157,42 +159,39 @@ def hessian_ker(state):
 	
 	for g in range(state.Ng):
 
-		X1 = cv(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
+		X1 = cv(state.input[g*Nneur:(g+1)*Nneur],Basis,state)#good
 
-		plt.plot(MP12[g,:])
-		plt.show()
+		v = fun.DerSigmoid(state.paramNL[g],MP12[g,:])#good
 
-		v = fun.DerSigmoid(state.paramNL[g],MP12[g,:])
+		v = np.atleast_2d(v).transpose()#good
 
-		v = np.atleast_2d(v).transpose()
+		u = fun.SecDerSigmoid(state.paramNL[g],MP12[g,:])#good
+		u = np.atleast_2d(u).transpose()#good
 
-		u = fun.SecDerSigmoid(state.paramNL[g],MP12[g,:])
-		u = np.atleast_2d(u).transpose()
+		X3 = cv(output,state.basisASP,state)#good
 
-		X3 = cv(output,state.basisASP,state)
+		Halgam = -state.dt*np.dot(X1*np.exp(MP),X3.transpose()*v)	
 
-		Halgam = -state.dt*np.dot(X1,X3.transpose()*v*lamb)	
-
-		Halthet = state.dt*np.sum(X1.transpose()*v*lamb,axis=0)
+		Halthet = -state.dt*np.sum(X1.transpose()*v*lamb,axis=0)
 
 		sptimes = np.around(np.array(output[0])/state.dt)
 		sptimes = sptimes.astype('int')
 
-		X1u = X1.transpose()*u
+		X1u = X1.transpose()*u#good
 
-		Hspik = state.dt*np.dot(X1[:,sptimes],X1u[sptimes,:])
+		Hspik = state.dt*np.dot(X1[:,sptimes],X1u[sptimes,:])#good
 
-		Hnlder = np.dot(X1,X1.transpose()*(v**2)*lamb)
+		Hnlder = np.dot(X1,X1.transpose()*(v**2)*lamb)#good
 
-		Hnlsecder = np.dot(X1,X1.transpose()*u*lamb)
+		Hnlsecder = np.dot(X1,X1.transpose()*u*lamb)#good
 
-		Hnosp = state.dt*(Hnlder + Hnlsecder)
+		Hnosp = state.dt*(Hnlder + Hnlsecder)#good
 
-		Halpha = Hspik - Hnosp
+		Halpha = Hspik - Hnosp#good
 
 		Hess_ker[g*Nneur*Nb:(g+1)*Nneur*Nb,-1] = Halthet
 
-		Hess_ker[g*Nneur*Nb:(g+1)*Nneur*Nb,g*Nneur*Nb:(g+1)*Nneur*Nb] = Halpha
+		Hess_ker[g*Nneur*Nb:(g+1)*Nneur*Nb,g*Nneur*Nb:(g+1)*Nneur*Nb] = Halpha#good
 
 		Hess_ker[g*Nneur*Nb:(g+1)*Nneur*Nb,Ng*Nneur*Nb:(Ng*Nneur*Nb+N_ASP)] = Halgam
 
@@ -200,24 +199,24 @@ def hessian_ker(state):
 
 			if g<>h:
 
-				u = fun.DerSigmoid(state.paramNL[g],MP12[g,:])
-				v = fun.DerSigmoid(state.paramNL[h],MP12[h,:])
+				u = fun.DerSigmoid(state.paramNL[g],MP12[g,:])#good
+				v = fun.DerSigmoid(state.paramNL[h],MP12[h,:])#good
 
-				u = np.atleast_2d(u).transpose()
-				v = np.atleast_2d(v).transpose()
+				u = np.atleast_2d(u).transpose()#good
+				v = np.atleast_2d(v).transpose()#good
 
-				X1 = cv(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
-				X2 = cv(state.input[h*Nneur:(h+1)*Nneur],Basis,state)
+				X1 = cv(state.input[g*Nneur:(g+1)*Nneur],Basis,state)#good
+				X2 = cv(state.input[h*Nneur:(h+1)*Nneur],Basis,state)#good
 
-				Halbet = - state.dt*np.dot(X1,X2.transpose()*u*v*lamb)
+				Halbet = - state.dt*np.dot(X1,X2.transpose()*u*v*lamb)#good
 
 				Hess_ker[g*Nneur*Nb:(g+1)*Nneur*Nb,h*Nneur*Nb:(h+1)*Nneur*Nb] = Halbet
 
-	Hess_ker[-1,-1] = -state.dt*np.sum(np.exp(MP))
+	Hess_ker[-1,-1] = -state.dt*np.sum(np.exp(MP))#good
 
-	Hgamthet = state.dt*np.sum(X3*np.exp(MP),axis=1)
+	Hgamthet = -state.dt*np.sum(X3*np.exp(MP),axis=1)
 
-	Hgam = -state.dt*np.dot(X3,X3.transpose()*lamb)
+	Hgam = -state.dt*np.dot(X3*np.exp(MP),X3.transpose())#good
 
 	Hess_ker[Ng*Nneur*Nb:(Ng*Nneur*Nb+N_ASP),-1] = Hgamthet
 
@@ -234,7 +233,7 @@ def subMembPot(state): #membrane potential before NL.
 	MP12 = np.zeros((state.Ng,Nsteps),dtype='float')
 
 	Nneur = int(state.N/state.Ng) #number of neurons in compartment.
-	Nb = state.N_cos_bumps #number of basis function for kernels.
+	Nb = state.basisKer.shape[0] #number of basis function for kernels.
 
 	for g in range(state.Ng):
 
