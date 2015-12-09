@@ -5,6 +5,7 @@ import mechanisms as mech
 import random
 import math
 import optim
+import pdiff_calc as diff
 
 class Synapses:
 
@@ -14,7 +15,7 @@ class Synapses:
 	td_exc = 20. #same
 	N = 12 #number of pre-synaptic neurons
 
-	def __init__(self,size,dt=0.025,len_ker=200.):
+	def __init__(self,size,dt=0.025,len_ker=300.):
 
 		self.dt = dt # timestep [ms]
 		self.len_ker = len_ker #[ms] total-time over which the kernel is defined.
@@ -49,23 +50,24 @@ class Synapses:
 class SpikingMechanism: #gather parameters for spiking.
 
 	dt = 1. #[ms]
+	strh = 200.
 	compartments = 2 #number of subgroups. each of them has a non-linearity.
-	non_linearity = np.array([[-20.,40.,1.,0.05],[-20.,40.,1.,0.05]])
-	non_linearity = np.array([[-20.,40.,1.,0.05],[-20.,40.,1.,0.05]]) #params for NL (sigmoids)
-	threshold = 30. #bio-inspired threshold value.
+	non_linearity = np.array([[-strh,2*strh,1.,1/strh],[-strh,2*strh,1.,1/strh]])
+	#non_linearity = np.array([[-20.,40.,1.,0.05],[-20.,40.,1.,0.05]]) #params for NL (sigmoids)
+	threshold = 25. #bio-inspired threshold value.
 	PSP_size = 25. # mV: Roughly std of the memb. pot. in a compartment before NL 	  
-	ASP_size = 20. # [mV] size of After-Spike-Potential (ASP)
+	ASP_size = 40. # [mV] size of After-Spike-Potential (ASP)
 	ASP_time = 200. #[ms] time-constant of decay ASP
 	ASP_total = 1000. #[ms] total length of ASP
 	ASP_total_st = ASP_total/dt #same but in time-steps unit.
 	delta_v = 5.#[mv]thresh. selectivity. In LNLN-model, will be one. rest will adapt.
-	lambda0 = 1. #[mV]firing value at threshold. 
+	lambda0 = 3. #[mV]firing value at threshold. 
 	in_rate = 20. #with these parameters, in_rate = 20 -> ~8Hz output
 
 class RunParameters:
 
 		 #[ms] same as above. dunno why defined twice (attribute access maybe).
-	total_time = 120000. #total simulation time
+	total_time = 300000. #total simulation time
 	N = 12. #number of presynaptic neurons
 	
 class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters): 
@@ -105,7 +107,7 @@ class FitParameters: # FitParameters is one component of the TwoLayerModel class
 	N = 12  # need to define it several times for access purposes.
 	Ng = 2 # number of nsub_groups
 	N_cos_bumps = 5 #number of PSP(ker) basis functions.
-	len_cos_bumps = 200. #ms. total length of the basis functions 
+	len_cos_bumps = 300. #ms. total length of the basis functions 
 	N_knots_ASP = 4.# number of knots for natural spline for ASP (unused)
 	N_knots = 10. # number of knots for NL (unused)
 	knots = range(-60,70,13) #knots for NL (unused)
@@ -121,7 +123,6 @@ class FitParameters: # FitParameters is one component of the TwoLayerModel class
 		b = self.basisKer
 
 		for i in range(b.shape[0]):
-
 			plt.plot(b[i,:])
 		plt.show()
  
@@ -132,14 +133,18 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 		self.paramNL = np.array([[-80.,160.,1.,0.0125],[-80.,160.,1.,0.0125]])
 		
 		Ncosbumps = self.basisKer.shape[0] #just to make it shorter
-		self.paramKer = np.zeros(int(self.N*Ncosbumps+self.N_knots_ASP+1.+1.)) 
 
+		self.paramKer = np.zeros(int(self.N*Ncosbumps+self.N_knots_ASP+1.+1.)) 
+	
 	def add_data(self,neuron): #import data from neuron
 		
 		self.input = neuron.input
 		self.output = [neuron.output]
 		self.paramKer[-1] = -math.log(neuron.output_rate) #initialize for fit.
 
+		self.sub_membrane_potential = diff.subMembPot(self)	
+		self.membrane_potential = diff.PMembPot(self)	
+		
 	def fit(self): #fit with block cooridinate ascend. not working yet.
 
 		self.paramNL,self.paramKer,self.likelihood = optim.BlockCoordinateAscent(self)

@@ -11,7 +11,7 @@ def SpikeGeneration(neuron,control):#neuron contains input spike-trains and a sp
 	MP = np.zeros((Nsteps,),dtype='float') #membrane potential that the model uses.
                                   
 	inp_tmp = copy.copy(neuron.input) #if no copy input is emptied (we use pop)
-
+	
 	output = [] #where output spike trains are stored.
 
 	for g in range(neuron.compartments): #compartments = groups with their own NL
