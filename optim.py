@@ -39,18 +39,31 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 
 		self.paramKer = self.paramKer - rate*np.dot(invH,self.gradient_ker)
 
-	def iter_NL(self):
+	def iter_NL(self,rate):
 
 		invH = np.linalg.pinv(self.hessian_NL)
 
 		for g in range(len(self.paramNL)):
 
-			Np = len(self.paramNL[g])
+			Np = len(self.paramNL[g])	
+			Ns = len(self.output[0])
 
-			change = np.dot(invH,self.gradient_NL)[g*Np:(g+1)*Np]
+			invh = 1./self.hessian_NL[0,0]
 
-			self.paramNL[g] = self.paramNL[g] - change
+			self.paramNL[g][0] = self.paramNL[g][0] - invh*self.gradient_NL[g*Np]  
 
+			invh = 1./self.hessian_NL[1,1]
+
+			self.paramNL[g][1] = self.paramNL[g][1] - invh*self.gradient_NL[g*Np+1]
+
+			step = 0.005*self.gradient_NL[g*Np+2]/self.gradient_NL[g*Np+2]
+
+			self.paramNL[g][2] = self.paramNL[g][2] + step		
+
+			step = 0.005*self.gradient_NL[g*Np+3]/self.gradient_NL[g*Np+3]
+	
+			self.paramNL[g][3] = self.paramNL[g][3] + step
+	
 	def update(self):
 
 		self.sub_membrane_potential = diff.subMembPot(self)
@@ -70,36 +83,39 @@ def BlockCoordinateAscent(Model):
 
 	norm = abs(np.sum(state.gradient_ker**2)+np.sum(state.gradient_NL**2))
 
-	cnt = 0.
+	cnt_ker = 1.
+	cnt_nl = 1.
+
+	gs = gridspec.GridSpec(4,1)
+
+	fig1 = plt.figure()
+	ax1 = fig1.add_subplot(gs[0,0])
+	ax2 = fig1.add_subplot(gs[1,0])
+	ax3 = fig1.add_subplot(gs[2,0])
+	ax4 = fig1.add_subplot(gs[3,0])
+
+	fig1.show()
+	plt.draw()
+	plt.ion()
+
 	
+	fig2 = plt.figure()
+	fig2.show()
+	ax5 = fig2.add_subplot(111)
+	plt.ion()
+
 	while norm>Model.tol:
-
-		gs = gridspec.GridSpec(4,1)
-
-		fig1 = plt.figure()
-		ax1 = fig1.add_subplot(gs[0,0])
-		ax2 = fig1.add_subplot(gs[1,0])
-		ax3 = fig1.add_subplot(gs[2,0])
-		ax4 = fig1.add_subplot(gs[3,0])
-
-		fig1.show()
-
-		plt.draw()
-
-		plt.ion()
-
-		n0 = copy.copy(norm)
 
 		norm_ker = math.sqrt(abs(np.sum(state.gradient_ker**2)))
 
-		diff = 1.
+		tol_ker = copy.copy(12./cnt_ker)
 
-		while norm_ker > 6.:
+		while norm_ker > tol_ker:
 
 			l0 = copy.copy(state.likelihood)
 
-			print "count ker:", cnt
-			cnt = cnt + 1		
+			print "count ker:", cnt_ker
+			cnt_ker = cnt_ker + 1.		
 
 			ax1.plot(np.dot(state.paramKer[-10:-6],state.basisKer))
 			ax2.plot(np.dot(state.paramKer[:4],state.basisKer))	
@@ -108,50 +124,47 @@ def BlockCoordinateAscent(Model):
 			fig1.canvas.draw()	
 			time.sleep(0.005)
 
-			if cnt<10:
-				rate = 0.8
+			if cnt_ker<10:
+				rate = 1.
 			else:
 				rate = 1.
 
 			state.iter_ker(rate)
 			state.update()
-
-			diff = state.likelihood - l0
 			
 			norm_ker = math.sqrt(abs(np.sum(state.gradient_ker**2)))
 
-			print state.likelihood, norm_ker, "threshold: ", state.paramKer[-1]
+			ll = state.likelihood
+			th = state.paramKer[-1]
 
-		diff = 1.
+			print "LL: ",ll, "norm: ",norm_ker, "thresh: ",th,"tol: ", tol_ker
 
-		cnt = 0.
-
-		fig2 = plt.figure()
-		fig2.show()
-		ax5 = fig2.add_subplot(111)
-		plt.ion()
+		tol_nl = copy.copy(0.005/cnt_nl)
 
 		norm_nl = math.sqrt(abs(np.sum(state.gradient_NL**2)))
 
-		while norm_nl > 0.1:
+		while norm_nl > tol_nl:
 
 			v = np.arange(-50.,50.,1.)
 			ax5.plot(v,fun.sigmoid(state.paramNL[0],v))
 			fig2.canvas.draw()
+			ax4.plot(1-np.exp(-np.exp(state.membrane_potential[:3000])))
+			fig1.canvas.draw()	
 			time.sleep(0.005)
 
-			cnt = cnt + 1
+			cnt_nl = cnt_nl + 1.
+			rate_nl = 0.001/cnt_nl
 
 			l0 = copy.copy(state.likelihood)
 
-			state.iter_NL()
+			state.iter_NL(rate_nl)
 			state.update()
 
 			norm_nl = abs(np.sum(state.gradient_NL**2))
 
-			print "count NL: ",cnt
+			print "count NL: ",cnt_nl
 
-			print state.likelihood, norm_nl
+			print state.likelihood, norm_nl, "tol: ",tol_nl
 	
 	return state.paramNL,state.paramKer,state.likelihood
 

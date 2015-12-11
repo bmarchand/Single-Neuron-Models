@@ -50,7 +50,7 @@ class Synapses:
 class SpikingMechanism: #gather parameters for spiking.
 
 	dt = 1. #[ms]
-	strh = 200.
+	strh = 10.
 	compartments = 2 #number of subgroups. each of them has a non-linearity.
 	non_linearity = np.array([[-strh,2*strh,1.,1/strh],[-strh,2*strh,1.,1/strh]])
 	#non_linearity = np.array([[-20.,40.,1.,0.05],[-20.,40.,1.,0.05]]) #params for NL (sigmoids)
@@ -67,7 +67,7 @@ class SpikingMechanism: #gather parameters for spiking.
 class RunParameters:
 
 		 #[ms] same as above. dunno why defined twice (attribute access maybe).
-	total_time = 300000. #total simulation time
+	total_time = 240000. #total simulation time
 	N = 12. #number of presynaptic neurons
 	
 class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters): 
@@ -106,7 +106,7 @@ class FitParameters: # FitParameters is one component of the TwoLayerModel class
 	dt = 1. #[ms]
 	N = 12  # need to define it several times for access purposes.
 	Ng = 2 # number of nsub_groups
-	N_cos_bumps = 6 #number of PSP(ker) basis functions.
+	N_cos_bumps = 5 #number of PSP(ker) basis functions.
 	len_cos_bumps = 300. #ms. total length of the basis functions 
 	N_knots_ASP = 4.# number of knots for natural spline for ASP (unused)
 	N_knots = 10. # number of knots for NL (unused)
@@ -114,7 +114,7 @@ class FitParameters: # FitParameters is one component of the TwoLayerModel class
 	bnds = [-100.,100.] #[mV] domain over which NL is defined
 	knots_ASP = range(int(100./dt),int(500./dt),int(100/dt)) #knots for ASP (unused)
 	bnds_ASP = [0,500./dt] # domain over which ASP defined. [timesteps]
-	basisKer = fun.CosineBasis(N_cos_bumps,len_cos_bumps,dt)[2:,:] #basis for kernels.
+	basisKer = fun.CosineBasis(N_cos_bumps,len_cos_bumps,dt)[1:,:] #basis for kernels.
 	basisASP = fun.Tents(knots_ASP,bnds_ASP,1000./dt) #basis for ASP (Tents not splines)
 	tol = 10**-6 #(Tol over gradient norm below which you stop optimizing)
 
@@ -130,17 +130,21 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 
 	def __init__(self): #initialized as a GLM (not working yet)
 
-		self.paramNL = np.array([[-80.,160.,1.,0.0125],[-80.,160.,1.,0.0125]])
+		strh = 10.
+
+		self.paramNL = np.array([[-strh,2*strh,1.,1/strh],[-strh,2*strh,1.,1/strh]])
 		
 		Ncosbumps = self.basisKer.shape[0] #just to make it shorter
 
 		self.paramKer = np.zeros(int(self.N*Ncosbumps+self.N_knots_ASP+1.+1.)) 
 	
 	def add_data(self,neuron): #import data from neuron
-		
+
+		Nsteps = neuron.total_time/neuron.dt		
+
 		self.input = neuron.input
 		self.output = [neuron.output]
-		self.paramKer[-1] = -math.log(neuron.output_rate) #initialize for fit.
+		self.paramKer[-1] = -math.log(len(neuron.output)/Nsteps) #initialize for fit.
 
 		self.sub_membrane_potential = diff.subMembPot(self)	
 		self.membrane_potential = diff.PMembPot(self)	

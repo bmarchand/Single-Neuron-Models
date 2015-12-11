@@ -50,7 +50,7 @@ class Synapses:
 class SpikingMechanism: #gather parameters for spiking.
 
 	dt = 1. #[ms]
-	strh = 200.
+	strh = 10.
 	compartments = 2 #number of subgroups. each of them has a non-linearity.
 	non_linearity = np.array([[-strh,2*strh,1.,1/strh],[-strh,2*strh,1.,1/strh]])
 	#non_linearity = np.array([[-20.,40.,1.,0.05],[-20.,40.,1.,0.05]]) #params for NL (sigmoids)
@@ -67,7 +67,7 @@ class SpikingMechanism: #gather parameters for spiking.
 class RunParameters:
 
 		 #[ms] same as above. dunno why defined twice (attribute access maybe).
-	total_time = 300000. #total simulation time
+	total_time = 240000. #total simulation time
 	N = 12. #number of presynaptic neurons
 	
 class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters): 
@@ -137,10 +137,12 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 		self.paramKer = np.zeros(int(self.N*Ncosbumps+self.N_knots_ASP+1.+1.)) 
 	
 	def add_data(self,neuron): #import data from neuron
-		
+
+		Nsteps = neuron.total_time/neuron.dt		
+
 		self.input = neuron.input
 		self.output = [neuron.output]
-		self.paramKer[-1] = -math.log(neuron.output_rate) #initialize for fit.
+		self.paramKer[-1] = -math.log(len(neuron.output)/Nsteps) #initialize for fit.
 
 		self.sub_membrane_potential = diff.subMembPot(self)	
 		self.membrane_potential = diff.PMembPot(self)	

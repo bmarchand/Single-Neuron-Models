@@ -90,10 +90,9 @@ def ParDerSigmoid(l,x):
 
 	return [a,b,c,d]
 
-def CosineBasis(K,T,dt,a=1.6,c=0.): #cosine function on logarithm scale. truncated.
+def CosineBasis(K,T,dt,a=1.8,c=0.): #cosine function on logarithm scale. truncated.
 	
 	F = np.zeros((K,T/dt),dtype='float') 
-	I = np.arange(T/dt)*dt
 
 	for k in range(K): 
 
