@@ -79,16 +79,18 @@ def CosineBasis(K,T,dt,a=1.8,c=0.): #cosine function on logarithm scale. truncat
 
 	return F
 
-def NaturalSpline(knots,bnds):
+def NaturalSpline(knots,bnds,total_length):
 	
 	dv = 0.00001*(bnds[1]-bnds[0])
-
-	F = np.zeros((len(knots),100000.),dtype='float')
-
-	v = np.arange(bnds[0],bnds[1],dv)
+	F = np.zeros((len(knots),total_length),dtype='float')
+	
+	for i in range(len(knots)):
+		
+		knots[i] = np.around(((knots[i] - bnds[0])/(bnds[1]-bnds[0]))*total_length)
+	
+	v = np.arange(total_length)
 
 	F[0,:] = 1.
-
 	F[1,:] = v
 
 	for i in range(2,len(knots)):
@@ -103,7 +105,6 @@ def NaturalSpline(knots,bnds):
 		tmp3[tmp3<0.] = 0.		
 
 		dk = (tmp1 - tmp2)*(1./(knots[-1]-knots[i-2]))
-
 		dkm1 = (tmp3 - tmp2)*(1./(knots[-1]-knots[-2]))
 
 		F[i,:] = dk - dkm1
