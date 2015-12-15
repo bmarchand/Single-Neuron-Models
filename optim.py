@@ -48,22 +48,10 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 			Np = len(self.paramNL[g])	
 			Ns = len(self.output[0])
 
-			invh = 1./self.hessian_NL[0,0]
+			print "scalar product: ", - np.dot(np.dot(invH,self.gradient_NL),self.gradient_NL)
 
-			self.paramNL[g][0] = self.paramNL[g][0] - invh*self.gradient_NL[g*Np]  
+			self.paramNL[g] = self.paramNL[g] - np.dot(invH,self.gradient_NL)
 
-			invh = 1./self.hessian_NL[1,1]
-
-			self.paramNL[g][1] = self.paramNL[g][1] - invh*self.gradient_NL[g*Np+1]
-
-			step = 0.005*self.gradient_NL[g*Np+2]/self.gradient_NL[g*Np+2]
-
-			self.paramNL[g][2] = self.paramNL[g][2] + step		
-
-			step = 0.005*self.gradient_NL[g*Np+3]/self.gradient_NL[g*Np+3]
-	
-			self.paramNL[g][3] = self.paramNL[g][3] + step
-	
 	def update(self):
 
 		self.sub_membrane_potential = diff.subMembPot(self)
@@ -139,6 +127,8 @@ def BlockCoordinateAscent(Model):
 
 			print "LL: ",ll, "norm: ",norm_ker, "thresh: ",th,"tol: ", tol_ker
 
+		np.savetxt('paramKer_ref.txt',state.paramKer)
+
 		tol_nl = copy.copy(0.005/cnt_nl)
 
 		norm_nl = math.sqrt(abs(np.sum(state.gradient_NL**2)))
@@ -153,7 +143,7 @@ def BlockCoordinateAscent(Model):
 			time.sleep(0.005)
 
 			cnt_nl = cnt_nl + 1.
-			rate_nl = 0.001/cnt_nl
+			rate_nl = 0.001
 
 			l0 = copy.copy(state.likelihood)
 
@@ -167,4 +157,5 @@ def BlockCoordinateAscent(Model):
 			print state.likelihood, norm_nl, "tol: ",tol_nl
 	
 	return state.paramNL,state.paramKer,state.likelihood
+
 

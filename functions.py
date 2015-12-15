@@ -58,37 +58,45 @@ def spike_train(neuron): #generate Poisson spike train.
 		
 def sigmoid(l,x):
 
-	y = l[0] + l[1]/( l[2]+np.exp(-l[3]*x) )
+
+
+	d = (l[2]+1)**2/l[1]
+
+	y = l[1]/( l[2]+np.exp(-d*x) ) + l[0]
 
 	return y
 
 def DerSigmoid(l,x):
 
-	y = l[1]*l[3]*np.exp(-l[3]*x)/(l[2]+np.exp(-l[3]*x))**2
+	d = (l[2]+1)**2/l[1]
+
+	y = l[1]*d*np.exp(-d*x)/(l[2]+np.exp(-d*x))**2
 	
 	return y 
 
 def SecDerSigmoid(l,x):
 
-	first = -l[3]*np.exp(-l[3]*x)/(l[2]+np.exp(-l[3]*x))**2
+	d = (l[2]+1)**2/l[1]
 
-	second = 2*l[3]*np.exp(-2*l[3]*x)/(l[2]+np.exp(-l[3]*x))**3
+	first = -d*np.exp(-d*x)/(l[2]+np.exp(-d*x))**2
 
-	y = l[1]*l[3]*(first + second)
+	second = 2*d*np.exp(-2*d*x)/(l[2]+np.exp(-d*x))**3
+
+	y = l[1]*d*(first + second)
 
 	return y
 
 def ParDerSigmoid(l,x):
 
-	a = np.ones(x.shape)
+	a = np.ones(x.size)
 
-	b = 1./(l[2]+np.exp(-l[3]*x))
+	l3 = (l[2]+1)**2/l[1]
 
-	c = - l[1]/(l[2]+np.exp(-l[3]*x))**2
+	b = 1./(l[2]+np.exp(-l3*x))
 
-	d = l[1]*l[3]*np.exp(-l[3]*x)/(l[2]+np.exp(-l[3]*x))**2
+	c = - l[1]*(1 - 2*x*(l3/(l[2]+1))*np.exp(-l3*x))/(l[2]+np.exp(-l3*x))**2 
 
-	return [a,b,c,d]
+	return [a,b,c]
 
 def CosineBasis(K,T,dt,a=1.8,c=0.): #cosine function on logarithm scale. truncated.
 	
