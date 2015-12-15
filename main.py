@@ -5,6 +5,7 @@ import mechanisms as mech
 import random
 import math
 import optim
+import diff_calc as diff
 
 class Synapses:
 
@@ -49,11 +50,12 @@ class Synapses:
 class SpikingMechanism: #gather parameters for spiking.
 
 	dt = 1. #[ms]
-	compartments = 2 #number of subgroups. each of them has a non-linearity.
-	non_linearity = [[100,1.,0.04],[100.,1.,0.04]] #params for NL (sigmoids)
-	threshold = 30. #bio-inspired threshold value.
+	strh = 80.
+	compartments = 1 #number of subgroups. each of them has a non-linearity.
+	non_linearity = [[-strh,2*strh,1.,1./strh]]#,[-strh,2*strh,1.,1./strh]] 
+	threshold = 25. #bio-inspired threshold value.
 	PSP_size = 25. # mV: Roughly std of the memb. pot. in a compartment before NL 	  
-	ASP_size = 20. # [mV] size of After-Spike-Potential (ASP)
+	ASP_size = 40. # [mV] size of After-Spike-Potential (ASP)
 	ASP_time = 200. #[ms] time-constant of decay ASP
 	ASP_total = 1000. #[ms] total length of ASP
 	ASP_total_st = ASP_total/dt #same but in time-steps unit.
@@ -63,8 +65,7 @@ class SpikingMechanism: #gather parameters for spiking.
 
 class RunParameters:
 
-	dt = 1. #[ms] same as above. dunno why defined twice (attribute access maybe).
-	total_time = 60000. #total simulation time
+	total_time = 240000. #total simulation time
 	N = 12. #number of presynaptic neurons
 	
 class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters): 
@@ -102,19 +103,19 @@ class FitParameters: # FitParameters is one component of the TwoLayerModel class
 
 	dt = 1. #[ms]
 	N = 12  # need to define it several times for access purposes.
-	Ng = 2 # number of nsub_groups
+	Ng = 1 # number of nsub_groups
 	N_cos_bumps = 5 #number of PSP(ker) basis functions.
-	len_cos_bumps = 500. #ms. total length of the basis functions 
+	len_cos_bumps = 200. #ms. total length of the basis functions 
 	N_knots_ASP = 4.# number of knots for natural spline for ASP (unused)
 	N_knots = 10. # number of knots for NL (unused)
 	knots = range(-60,70,13) #knots for NL (unused)
 	bnds = [-100.,100.] #[mV] domain over which NL is defined
-	knots_ASP = range(int(100./dt),int(500./dt),100) #knots for ASP (unused)
-	bnds_ASP = [0,500./dt] # domain over which ASP defined. [timesteps]
+	knots_ASP = range(int(200./dt),int(1000./dt),int(200/dt) ) #knots for ASP (unused)
+	bnds_ASP = [0,1000./dt] # domain over which ASP defined. [timesteps]
 	basisNL = fun.Tents(knots,bnds,100000.) #basis for NL (Tents instead of splines)
 	basisNLder = fun.DerTents(knots,bnds,100000.) #derivative of above. for gradient.
 	basisNLSecDer = fun.SecDerTents(knots,bnds,100000.) #second derivative. 0 here.
-	basisKer = fun.CosineBasis(N_cos_bumps,len_cos_bumps,dt) #basis for kernels.
+	basisKer = fun.CosineBasis(N_cos_bumps,len_cos_bumps,dt)[1:,:] #basis for kernels.
 	basisASP = fun.Tents(knots_ASP,bnds_ASP,1000.) #basis for ASP (Tents not splines)
 	tol = 10**-6 #(Tol over gradient norm below which you stop optimizing)
 
@@ -134,16 +135,21 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 
 		para = fun.Ker2Param(v,self.basisNL)
 
-		self.paramNL = np.hstack((para,para)) 
+		self.paramNL = para
 		
-		Ncosbumps = self.N_cos_bumps #just to make it shorter
-		self.paramKer = np.zeros(int(self.N*Ncosbumps+self.N_knots_ASP+1.+1.)) 
+		Nb = self.basisKer.shape[0]     #just to make it shorter
+		self.paramKer = np.zeros(int(self.N*Nb+self.basisASP.shape[0]+1)) 
 
 	def add_data(self,neuron): #import data from neuron
+
+		Nsteps = neuron.total_time/neuron.dt
 		
 		self.input = neuron.input
 		self.output = [neuron.output]
-		self.paramKer[-1] = -math.log(neuron.output_rate) #initialize for fit.
+		self.paramKer[-1] = -math.log(len(neuron.output)/Nsteps) #initialize for fit.
+
+		self.sub_membrane_potential = diff.subMembPot(self)
+		self.membrane_potential = diff.MembPot(self)
 
 	def fit(self): #fit with block cooridinate ascend. not working yet.
 
@@ -152,3 +158,5 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 	def plot(self): #under-developed plot method.
 
 		print self.likelihood,self.paramKer
+
+

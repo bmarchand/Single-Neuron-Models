@@ -53,8 +53,4 @@ cdef convolve_cython(
             bndup = min(bndlo + lb, steps)
 
             for i in range(bndup-bndlo):
-                X[startidx * basis.shape[0] + b, bndlo + i] += basis[b, i]
-
-
-
-
+                X[startidx * b, bndlo + i] += basis[b, i]

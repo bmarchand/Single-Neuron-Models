@@ -58,26 +58,27 @@ def SpikeGeneration(neuron,control):#neuron contains input spike-trains and a sp
 			plt.show()
 
 
-		MP = MP + fun.sigmoid(neuron.non_linearity[g],MP_part)
+		plt.plot(MP_part)
+		plt.plot(fun.sigmoid(neuron.non_linearity[g],MP_part))
+		plt.show()
 
-	for t in range(Nsteps):
+		MP = MP + fun.sigmoid(neuron.non_linearity[g],MP_part) 
+
+	for t in range(Nsteps): #spike generation itself.
 
 		lamb = neuron.lambda0*np.exp((MP[t]-neuron.threshold)/neuron.delta_v)
 
-		p = lamb*neuron.dt
+		p = lamb*neuron.dt #first-order of (1-exp(-lamb*dt))
 
 		if p>random.random():
 
-			output.append(t*neuron.dt)
+			output.append(t*neuron.dt) #convert back to [ms]
 			bndup = min(Nsteps,t+neuron.ASP_total_st)
 			bndupk = min(neuron.ASP_total_st,Nsteps-t)
-			size = neuron.ASP_size
-			expfun = fun.exp_fun(neuron.ASP_time,neuron.dt,neuron.ASP_total)
+			size = neuron.ASP_size # ~30
+			expfun = fun.exp_fun(neuron.ASP_time,neuron.dt,neuron.ASP_total) # ~1
 
-			MP[t:bndup] = MP[t:bndup] - size*expfun[:bndupk]
-
-	plt.plot(MP)
-	plt.show()
+			MP[t:bndup] = MP[t:bndup] - size*expfun[:bndupk] # can't convolve here.
 
 	return output, MP
 	

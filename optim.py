@@ -5,6 +5,7 @@ import copy
 import diff_calc as diff
 import main
 import matplotlib.pylab as plt
+from matplotlib import gridspec
 import math
 import time
 
@@ -28,26 +29,29 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 
 		self.likelihood = diff.likelihood(Model)
 
-		Np = int(np.size(Model.paramNL)*0.5) #number of basis functions per NL.
+		self.sub_membrane_potential = diff.subMembPot(Model)
+		self.membrane_potential = diff.MembPot(Model)
 
 	def iter_ker(self,rate): 
 
-		invH = np.linalg.inv(self.hessian_ker)
+		invH = np.linalg.pinv(self.hessian_ker)
+
+		print self.gradient_ker
+
+		print invH.shape, self.paramKer.shape, self.gradient_ker.shape
 		
 		self.paramKer = self.paramKer - rate*np.dot(invH,self.gradient_ker)
 
-	def iter_NL(self):
+	def iter_NL(self,rate):
 
-		norm = math.sqrt(abs(np.sum(self.gradient_NL**2)))
+		invH = np.linalg.pinv(self.hessian_NL)
 
-		self.paramNL = self.paramNL + self.gradient_NL/norm
+		self.paramNL = self.paramNL - rate*np.dot(invH,self.gradient_NL)
 
 	def update(self):
 
+		self.sub_membrane_potential = diff.subMembPot(self)
 		self.membrane_potential = diff.MembPot(self)
-
-		Np = int(np.size(self.paramNL)*0.5)
-		self.NL = np.dot(self.paramNL[:Np],self.basisNL)
 
 		self.likelihood = diff.likelihood(self)
 		
@@ -63,79 +67,86 @@ def BlockCoordinateAscent(Model):
 
 	norm = abs(np.sum(state.gradient_ker**2)+np.sum(state.gradient_NL**2))
 
-	cnt = 0.
+	cnt_ker = 1.
+	cnt_nl = 1.
+
+	gs = gridspec.GridSpec(4,1)
+
+	fig1 = plt.figure()
+	ax1 = fig1.add_subplot(gs[0,0])
+	ax2 = fig1.add_subplot(gs[1,0])
+	ax3 = fig1.add_subplot(gs[2,0])
+	ax4 = fig1.add_subplot(gs[3,0])
+
+	fig1.show()
+	plt.draw()
+	plt.ion()
+
+	fig2 = plt.figure()
+	fig2.show()
+	ax5 = fig2.add_subplot(111)
+	plt.ion()		
 	
-	while norm>Model.tol:
+	while norm > Model.tol:
 
-		fig = plt.figure()
+		norm_ker = math.sqrt(abs(np.sum(state.gradient_ker**2)))
 
-		plt.ion()
+		tol_ker = copy.copy(12./cnt_ker)
 
-		n0 = copy.copy(norm)
-
-		norm_ker = abs(np.sum(state.gradient_ker**2))
-
-		diff = 1.
-
-		while diff > 0:
+		while norm_ker > tol_ker:
 
 			l0 = copy.copy(state.likelihood)
 
-			print "count ker:", cnt
-			cnt = cnt + 1
+			print "count ker:", cnt_ker
+			cnt_ker = cnt_ker + 1.
 
-			plt.plot(np.dot(state.paramKer[:5],state.basisKer))		
-
-			plt.draw()			
-
+			ax1.plot(np.dot(state.paramKer[-10:-6],state.basisKer))
+			ax2.plot(np.dot(state.paramKer[:4],state.basisKer))
+			ax3.plot(np.dot(state.paramKer[-6:-1],state.basisASP))
+			ax4.plot(state.membrane_potential[:3000])
+			fig1.canvas.draw()			
 			time.sleep(0.05)
 
-			if cnt<15:
-	
+			if cnt_ker<10:
 				rate = 0.2
-
 			else:
-				rate = 1.
+				rate = 0.9
 
 			state.iter_ker(rate)
-
 			state.update()
-
-			diff = state.likelihood - l0
 			
 			norm_ker = abs(np.sum(state.gradient_ker**2))
+	
+			ll = state.likelihood
+			th = state.paramKer[-1]
 
-			print state.likelihood, norm_ker
+			print "LL: ",ll,"norm: ",norm_ker,"thresh: ",th,"tol: ",tol_ker
 
-		diff = 1.
+		tol_nl = copy.copy(0.005/cnt_nl)
 
-		cnt = 0.
+		norm_nl = math.sqrt(abs(np.sum(state.gradient_NL**2)))
 
-		plt.close()
-		plt.figure()
-		plt.ion()
+		while norm_nl > tol_nl:
 
-		while diff > 0.:
+			ax5.plot(np.dot(state.paramNL[:11],state.basisNL))
+			fig2.canvas.draw()
+			ax4.plot(1 - np.exp(-np.exp(state.membrane_potential[:3000])))
+			fig1.canvas.draw()
+			time.sleep(0.005)
 
-			plt.plot(np.dot(state.paramNL[:11],state.basisNL))
-			plt.draw()
-
-			cnt = cnt +1
-
+			cnt_nl = cnt_nl + 1.
+			rate_nl = 1.
+	
 			l0 = copy.copy(state.likelihood)
 
-			state.iter_NL()
+			state.iter_NL(rate_nl)
 			state.update()
 
-			norm_NL = abs(np.sum(state.gradient_NL**2))
+			norm_nl = abs(np.sum(state.gradient_NL**2))
 
-			diff = state.likelihood - l0
+			print "count NL: ",cnt_nl
 
-			print "count NL: ",cnt
-
-			print state.likelihood
+			print state.likelihood, norm_nl, "tol: ",tol_nl
 	
 	return state.paramNL,state.paramKer,state.likelihood
 
-	
-	
