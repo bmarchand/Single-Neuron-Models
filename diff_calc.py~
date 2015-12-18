@@ -67,7 +67,6 @@ def gradient_NL(state): #first of the gradient.
 
 def hessian_NL(state): 
 
-	dv = (state.bnds[1] - state.bnds[0])*0.00001
 	Ns = float(len(state.output[0]))
 	Nsteps = int(state.total_time/state.dt) #Total number of time-steps.
 	Nb = state.basisNL.shape[0] #number of basis functions.
@@ -208,11 +207,6 @@ def hessian_ker(state):
 		nlDer = np.dot(param,basisder)
 		nlSecDer = np.dot(param,basissec)
 
-		plt.plot(nlDer)
-		plt.show()
-		plt.plot(nlSecDer)
-		plt.show()
-
 		X1 = cv(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
 		
 		v = applyNL(nlDer,MP12[g,:],state)
@@ -267,7 +261,7 @@ def hessian_ker(state):
 
 	Hess_ker[-1,-1] = -state.dt*np.sum(np.exp(MP))
 
-	Hgamthet = state.dt*np.sum(X3*lamb,axis=1)
+	Hgamthet = -state.dt*np.sum(X3*lamb,axis=1)
 
 	Hgam = -state.dt*np.dot(X3*lamb,X3.transpose())
 

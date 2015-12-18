@@ -35,10 +35,6 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 	def iter_ker(self,rate): 
 
 		invH = np.linalg.pinv(self.hessian_ker)
-
-		print self.gradient_ker
-
-		print invH.shape, self.paramKer.shape, self.gradient_ker.shape
 		
 		self.paramKer = self.paramKer - rate*np.dot(invH,self.gradient_ker)
 
@@ -86,14 +82,18 @@ def BlockCoordinateAscent(Model):
 	fig2.show()
 	ax5 = fig2.add_subplot(111)
 	plt.ion()		
-	
-	while norm > Model.tol:
+
+	iter_tot = 200.	
+
+	while iter_tot > 2.:
 
 		norm_ker = math.sqrt(abs(np.sum(state.gradient_ker**2)))
 
-		tol_ker = copy.copy(12./cnt_ker)
+		diff_ker = 100.
 
-		while norm_ker > tol_ker:
+		c0_ker = copy.copy(cnt_ker)
+
+		while diff_ker > 3.:
 
 			l0 = copy.copy(state.likelihood)
 
@@ -108,45 +108,56 @@ def BlockCoordinateAscent(Model):
 			time.sleep(0.05)
 
 			if cnt_ker<10:
-				rate = 0.2
+				rate = 1.
 			else:
-				rate = 0.9
+				rate = 1.
 
 			state.iter_ker(rate)
 			state.update()
-			
-			norm_ker = abs(np.sum(state.gradient_ker**2))
-	
+
 			ll = state.likelihood
+
+			diff_ker = abs(np.around((ll - l0)*1000.))
+				
 			th = state.paramKer[-1]
 
-			print "LL: ",ll,"norm: ",norm_ker,"thresh: ",th,"tol: ",tol_ker
+			print "LL: ",ll,"diff: ",diff_ker,"thresh: ",th
 
-		tol_nl = copy.copy(0.005/cnt_nl)
+		diff_nl = 100.
 
-		norm_nl = math.sqrt(abs(np.sum(state.gradient_NL**2)))
+		c0_nl = copy.copy(cnt_nl)
 
-		while norm_nl > tol_nl:
+		while diff_nl > 0.:
 
-			ax5.plot(np.dot(state.paramNL[:11],state.basisNL))
+			NL = np.dot(state.paramNL,state.basisNL)
+
+			ax5.plot(NL)
 			fig2.canvas.draw()
-			ax4.plot(1 - np.exp(-np.exp(state.membrane_potential[:3000])))
+			ax4.plot(state.membrane_potential[:3000])
 			fig1.canvas.draw()
 			time.sleep(0.005)
 
 			cnt_nl = cnt_nl + 1.
 			rate_nl = 1.
-	
+
+			print state.gradient_NL
+
+			print state.hessian_NL	
+			
 			l0 = copy.copy(state.likelihood)
 
 			state.iter_NL(rate_nl)
 			state.update()
 
-			norm_nl = abs(np.sum(state.gradient_NL**2))
+			diff_nl = abs(np.around((state.likelihood - l0)*10000.))
 
 			print "count NL: ",cnt_nl
 
-			print state.likelihood, norm_nl, "tol: ",tol_nl
+			print "ll: ",state.likelihood,"diff: ",diff_nl
+
+		iter_tot = (cnt_nl-c0_nl) + (cnt_ker - c0_ker)	
+
+		print "ITER_TOT: ", iter_tot
 	
 	return state.paramNL,state.paramKer,state.likelihood
 

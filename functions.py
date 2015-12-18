@@ -42,6 +42,7 @@ def spike_train(neuron): #generate Poisson spike train.
 
 	train = []
 
+
 	while np.sum(train)<neuron.total_time:
 
 		tmp_t = np.random.exponential(scale=1000./jitter(neuron.in_rate)) #ISI
@@ -58,7 +59,7 @@ def spike_train(neuron): #generate Poisson spike train.
 		
 def sigmoid(l,x):
 
-	y = 0.5*(l[0]/(l[1]+np.exp(-l[2]*x)) - l[0]/(l[1]+np.exp(l[2]*x)))
+	y = l[0] + l[1]/(l[2]+np.exp(-l[3]*x))
 
 	return y
 
@@ -111,6 +112,74 @@ def NaturalSpline(knots,bnds,total_length):
 
 	return F
 
+def DerNaturalSpline(knots,bnds,total_length):
+
+	dv = 0.00001*(bnds[1]-bnds[0])
+	F = np.zeros((len(knots),total_length),dtype='float')
+
+	for i in range(len(knots)):
+		
+		knots[i] = np.around(((knots[i] - bnds[0])/(bnds[1]-bnds[0]))*total_length)
+	
+	v = np.arange(total_length)
+
+	F[0,:] = 0.
+
+	F[1,:] = 1./dv
+
+	for i in range(2,len(knots)):
+
+		tmp1 = 3*(v-knots[i-2])**2/dv
+		tmp1[tmp1<0.] = 0.
+
+		tmp2 = 3*(v-knots[-1])**2/dv
+		tmp2[tmp2<0.] = 0.
+
+		tmp3 = 3*(v-knots[-2])**2/dv
+		tmp3[tmp3<0.] = 0.		
+
+		dk = (tmp1 - tmp2)*(1./(knots[-1]-knots[i-2]))
+
+		dkm1 = (tmp3 - tmp2)*(1./(knots[-1]-knots[-2]))
+
+		F[i,:] = dk - dkm1
+
+	return F
+
+def SecDerNaturalSpline(knots,bnds,total_length):
+
+	dv = 0.00001*(bnds[1]-bnds[0])
+	F = np.zeros((len(knots),total_length),dtype='float')
+
+	for i in range(len(knots)):
+		
+		knots[i] = np.around(((knots[i] - bnds[0])/(bnds[1]-bnds[0]))*total_length)
+	
+	v = np.arange(total_length)
+
+	F[0,:] = 0.
+
+	F[1,:] = 0.
+
+	for i in range(2,len(knots)):
+
+		tmp1 = 6*(v-knots[i-2])/dv**2
+		tmp1[tmp1<0.] = 0.
+
+		tmp2 = 6*(v-knots[-1])/dv**2
+		tmp2[tmp2<0.] = 0.
+
+		tmp3 = 6*(v-knots[-2])/dv**2
+		tmp3[tmp3<0.] = 0.		
+
+		dk = (tmp1 - tmp2)*(1./(knots[-1]-knots[i-2]))
+
+		dkm1 = (tmp3 - tmp2)*(1./(knots[-1]-knots[-2]))
+
+		F[i,:] = dk - dkm1
+
+	return F
+
 def Tents(knots,bnds,total_length):#uses knots and bnds to keep same syntax as splines
 
 	Nb = len(knots)+2
@@ -156,36 +225,7 @@ def SecDerTents(knots,bnds,total_length):
 
 	return F	
 
-def DerNaturalSpline(knots,bnds):
 
-	dv = 0.001*(bnds[1]-bnds[0])
-
-	F = np.zeros((len(knots),1000.),dtype='float')
-
-	v = np.arange(bnds[0],bnds[1],dv)
-
-	F[0,:] = 0.
-
-	F[1,:] = 1.
-
-	for i in range(2,len(knots)):
-
-		tmp1 = 3*(v-knots[i-2])**2
-		tmp1[tmp1<0.] = 0.
-
-		tmp2 = 3*(v-knots[-1])**2
-		tmp2[tmp2<0.] = 0.
-
-		tmp3 = 3*(v-knots[-2])**2
-		tmp3[tmp3<0.] = 0.		
-
-		dk = (tmp1 - tmp2)*(1./(knots[-1]-knots[i-2]))
-
-		dkm1 = (tmp3 - tmp2)*(1./(knots[-1]-knots[-2]))
-
-		F[i,:] = dk - dkm1
-
-	return F
 
 def SplineParamsforId(knots,bnds):
 

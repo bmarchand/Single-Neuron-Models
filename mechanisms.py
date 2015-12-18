@@ -3,6 +3,7 @@ import functions as fun #defined in functions.py
 import random
 import matplotlib.pylab as plt
 import copy
+import os
 
 def SpikeGeneration(neuron,control):#neuron contains input spike-trains and a sp mech 
 
@@ -22,7 +23,7 @@ def SpikeGeneration(neuron,control):#neuron contains input spike-trains and a sp
 
 		for cnt in range(nsyn): #loop over the synapses in the compartment/group
 
-			in_syn = inp_tmp.pop() #inp_tmp is a list of list of input spike trains.
+			in_syn = inp_tmp.pop() #inp_tmp is a list of list of input spike trains.S
 
 			for t in in_syn: # input spikes (in ms)
 
@@ -40,22 +41,22 @@ def SpikeGeneration(neuron,control):#neuron contains input spike-trains and a sp
 # Why not fftconvolve ? -> because would imply create a huge array of zeros and ones.
 # and this is not a slow part of the code anyway. + for loop is "sparse".
 
-		if control=='on': #to be sure that NL is correct and correctly applied.
+		plt.plot(MP_part)
+		plt.plot(fun.sigmoid(neuron.non_linearity[g],MP_part))
+		plt.show()
+		
+		h = np.histogram(MP_part,bins=1000.,range=[-80.,80.])
+		h_after = np.histogram(fun.sigmoid(neuron.non_linearity[g],MP_part),bins=1000.,range=[-80.,80.])
 
-			h = np.histogram(MP_part,bins=1000.,range=[-80.,80.])
+		plt.plot(h[1][:-1],h[0])
+		plt.plot(h_after[1][:-1],h_after[0])
+		plt.show()
 
-			MP_afterNL = fun.sigmoid(neuron.non_linearity[g],MP_part)
-			hpost = np.histogram(MP_afterNL,bins=1000.,range=[-80.,80.])
+		x = np.arange(-80.,80.,0.1)
 
-			plt.plot(h[1][:-1],h[0])
-			plt.plot(hpost[1][:-1],hpost[0])
-			plt.show()
-
-			x = np.arange(-80.,80.,0.1)
-
-			plt.plot(x,fun.sigmoid(neuron.non_linearity[g],x))
-			plt.plot(x,x)
-			plt.show()
+		plt.plot(x,fun.sigmoid(neuron.non_linearity[g],x))
+		plt.plot(x,x)
+		plt.show()
 
 		MP = MP + fun.sigmoid(neuron.non_linearity[g],MP_part) 
 
