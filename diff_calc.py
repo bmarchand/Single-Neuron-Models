@@ -110,6 +110,10 @@ def applyNL(NL,u,state): #crucial piece of code to apply NL to membrane potentia
 	u = u/dv
 	u = np.around(u)
 	u = u.astype('int') + 50000 #indices need to be recentered. 0mV -> 50000 -> 0mV
+	
+	u[u>99999] = 99999
+	u[u<0] = 0
+	
 	u = NL[u] # The values in the NL array are in mV.
 
 	return u
@@ -121,6 +125,9 @@ def applyNL_2d(NL,u,state): #same thing, but when dimensions are different.
 	u = u/dv
 	u = np.around(u)
 	u = u.astype('int') + 50000 #need to recenter.
+
+	u[u<0] = 0
+	u[u>99999] = 99999
 
 	if len(u.shape)==1: #if u is 1D but NL 2D (basis functions for instance)
 
@@ -315,6 +322,10 @@ def MembPot(state):
 		Mp_g = Mp_g/dv
 		Mp_g = np.around(Mp_g)
 		Mp_g = Mp_g.astype('int') + 50000
+
+		Mp_g[Mp_g>99999] = 99999
+		Mp_g[Mp_g<0] = 0
+
 		Mp_g = NL[Mp_g] #NL is an array with mV.
 
 		MP = MP + Mp_g

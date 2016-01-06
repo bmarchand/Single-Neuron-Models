@@ -2,6 +2,7 @@ import math
 import numpy as np
 import matplotlib.pylab as plt
 import random
+import copy
 
 def alpha_fun(tau_r,tau_d,dt,L,control='off'): #alpha functions for kernels.
  
@@ -84,29 +85,31 @@ def NaturalSpline(knots,bnds,total_length):
 	
 	dv = 0.00001*(bnds[1]-bnds[0])
 	F = np.zeros((len(knots),total_length),dtype='float')
+
+	c_knots = copy.copy(knots)
 	
-	for i in range(len(knots)):
+	for i in range(len(c_knots)):
 		
-		knots[i] = np.around(((knots[i] - bnds[0])/(bnds[1]-bnds[0]))*total_length)
+		c_knots[i] = np.around(((c_knots[i] - bnds[0])/(bnds[1]-bnds[0]))*total_length)
 	
 	v = np.arange(total_length)
 
 	F[0,:] = 1.
 	F[1,:] = v
 
-	for i in range(2,len(knots)):
+	for i in range(2,len(c_knots)):
 
-		tmp1 = (v-knots[i-2])**3
+		tmp1 = (v-c_knots[i-2])**3
 		tmp1[tmp1<0.] = 0.
 
-		tmp2 = (v-knots[-1])**3
+		tmp2 = (v-c_knots[-1])**3
 		tmp2[tmp2<0.] = 0.
 
-		tmp3 = (v-knots[-2])**3
+		tmp3 = (v-c_knots[-2])**3
 		tmp3[tmp3<0.] = 0.		
 
-		dk = (tmp1 - tmp2)*(1./(knots[-1]-knots[i-2]))
-		dkm1 = (tmp3 - tmp2)*(1./(knots[-1]-knots[-2]))
+		dk = (tmp1 - tmp2)*(1./(c_knots[-1]-c_knots[i-2]))
+		dkm1 = (tmp3 - tmp2)*(1./(c_knots[-1]-c_knots[-2]))
 
 		F[i,:] = dk - dkm1
 
@@ -114,12 +117,14 @@ def NaturalSpline(knots,bnds,total_length):
 
 def DerNaturalSpline(knots,bnds,total_length):
 
-	dv = 0.00001*(bnds[1]-bnds[0])
-	F = np.zeros((len(knots),total_length),dtype='float')
+	c_knots = copy.copy(knots)
 
-	for i in range(len(knots)):
+	dv = 0.00001*(bnds[1]-bnds[0])
+	F = np.zeros((len(c_knots),total_length),dtype='float')
+
+	for i in range(len(c_knots)):
 		
-		knots[i] = np.around(((knots[i] - bnds[0])/(bnds[1]-bnds[0]))*total_length)
+		c_knots[i] = np.around(((c_knots[i] - bnds[0])/(bnds[1]-bnds[0]))*total_length)
 	
 	v = np.arange(total_length)
 
@@ -127,20 +132,20 @@ def DerNaturalSpline(knots,bnds,total_length):
 
 	F[1,:] = 1./dv
 
-	for i in range(2,len(knots)):
+	for i in range(2,len(c_knots)):
 
-		tmp1 = 3*(v-knots[i-2])**2/dv
+		tmp1 = 3*(v-c_knots[i-2])**2/dv
 		tmp1[tmp1<0.] = 0.
 
-		tmp2 = 3*(v-knots[-1])**2/dv
+		tmp2 = 3*(v-c_knots[-1])**2/dv
 		tmp2[tmp2<0.] = 0.
 
-		tmp3 = 3*(v-knots[-2])**2/dv
+		tmp3 = 3*(v-c_knots[-2])**2/dv
 		tmp3[tmp3<0.] = 0.		
 
-		dk = (tmp1 - tmp2)*(1./(knots[-1]-knots[i-2]))
+		dk = (tmp1 - tmp2)*(1./(c_knots[-1]-c_knots[i-2]))
 
-		dkm1 = (tmp3 - tmp2)*(1./(knots[-1]-knots[-2]))
+		dkm1 = (tmp3 - tmp2)*(1./(c_knots[-1]-c_knots[-2]))
 
 		F[i,:] = dk - dkm1
 
@@ -148,12 +153,14 @@ def DerNaturalSpline(knots,bnds,total_length):
 
 def SecDerNaturalSpline(knots,bnds,total_length):
 
-	dv = 0.00001*(bnds[1]-bnds[0])
-	F = np.zeros((len(knots),total_length),dtype='float')
+	c_knots = copy.copy(knots)
 
-	for i in range(len(knots)):
+	dv = 0.00001*(bnds[1]-bnds[0])
+	F = np.zeros((len(c_knots),total_length),dtype='float')
+
+	for i in range(len(c_knots)):
 		
-		knots[i] = np.around(((knots[i] - bnds[0])/(bnds[1]-bnds[0]))*total_length)
+		c_knots[i] = np.around(((c_knots[i] - bnds[0])/(bnds[1]-bnds[0]))*total_length)
 	
 	v = np.arange(total_length)
 
@@ -161,20 +168,20 @@ def SecDerNaturalSpline(knots,bnds,total_length):
 
 	F[1,:] = 0.
 
-	for i in range(2,len(knots)):
+	for i in range(2,len(c_knots)):
 
-		tmp1 = 6*(v-knots[i-2])/dv**2
+		tmp1 = 6*(v-c_knots[i-2])/dv**2
 		tmp1[tmp1<0.] = 0.
 
-		tmp2 = 6*(v-knots[-1])/dv**2
+		tmp2 = 6*(v-c_knots[-1])/dv**2
 		tmp2[tmp2<0.] = 0.
 
-		tmp3 = 6*(v-knots[-2])/dv**2
+		tmp3 = 6*(v-c_knots[-2])/dv**2
 		tmp3[tmp3<0.] = 0.		
 
-		dk = (tmp1 - tmp2)*(1./(knots[-1]-knots[i-2]))
+		dk = (tmp1 - tmp2)*(1./(c_knots[-1]-c_knots[i-2]))
 
-		dkm1 = (tmp3 - tmp2)*(1./(knots[-1]-knots[-2]))
+		dkm1 = (tmp3 - tmp2)*(1./(c_knots[-1]-c_knots[-2]))
 
 		F[i,:] = dk - dkm1
 

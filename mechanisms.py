@@ -41,22 +41,24 @@ def SpikeGeneration(neuron,control):#neuron contains input spike-trains and a sp
 # Why not fftconvolve ? -> because would imply create a huge array of zeros and ones.
 # and this is not a slow part of the code anyway. + for loop is "sparse".
 
-		plt.plot(MP_part)
-		plt.plot(fun.sigmoid(neuron.non_linearity[g],MP_part))
-		plt.show()
+		if control=='on':
 		
-		h = np.histogram(MP_part,bins=1000.,range=[-80.,80.])
-		h_after = np.histogram(fun.sigmoid(neuron.non_linearity[g],MP_part),bins=1000.,range=[-80.,80.])
+			plt.plot(MP_part)
+			plt.plot(fun.sigmoid(neuron.non_linearity[g],MP_part))
+			plt.show()
+		
+			h = np.histogram(MP_part,bins=1000.,range=[-80.,80.])
+			h_after = np.histogram(fun.sigmoid(neuron.non_linearity[g],MP_part),bins=1000.,range=[-80.,80.])
 
-		plt.plot(h[1][:-1],h[0])
-		plt.plot(h_after[1][:-1],h_after[0])
-		plt.show()
+			plt.plot(h[1][:-1],h[0])
+			plt.plot(h_after[1][:-1],h_after[0])
+			plt.show()
 
-		x = np.arange(-80.,80.,0.1)
+			x = np.arange(-80.,80.,0.1)
 
-		plt.plot(x,fun.sigmoid(neuron.non_linearity[g],x))
-		plt.plot(x,x)
-		plt.show()
+			plt.plot(x,fun.sigmoid(neuron.non_linearity[g],x))
+			plt.plot(x,x)
+			plt.show()
 
 		MP = MP + fun.sigmoid(neuron.non_linearity[g],MP_part) 
 
@@ -75,6 +77,8 @@ def SpikeGeneration(neuron,control):#neuron contains input spike-trains and a sp
 			expfun = fun.exp_fun(neuron.ASP_time,neuron.dt,neuron.ASP_total) # ~1
 
 			MP[t:bndup] = MP[t:bndup] - size*expfun[:bndupk] # can't convolve here.
+
+	print MP_part.std()
 
 	return output, MP
 	
