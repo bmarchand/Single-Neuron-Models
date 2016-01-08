@@ -65,7 +65,7 @@ class SpikingMechanism: #gather parameters for spiking.
 
 class RunParameters:
 
-	total_time = 200000. #total simulation time
+	total_time = 600000. #total simulation time
 	N = 6. #number of presynaptic neurons
 	
 class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters): 
@@ -86,7 +86,7 @@ class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters):
 
 	def run(self): #generate output from input and spike mechanism.
 
-		ctrl = control = 'off' #in case you wanna plot stuff.
+		ctrl = control = 'on' #in case you wanna plot stuff.
 		self.output,self.membrane_potential = mech.SpikeGeneration(self,ctrl)
 		self.output_rate = len(self.output)/(0.001*self.total_time) #[Hz]
 
