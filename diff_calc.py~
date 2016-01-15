@@ -126,6 +126,9 @@ def applyNL_2d(NL,u,state): #same thing, but when dimensions are different.
 	u = np.around(u)
 	u = u.astype('int') + 50000 #need to recenter.
 
+	u[u<0] = 0
+	u[u>99999] = 99999
+
 	if len(u.shape)==1: #if u is 1D but NL 2D (basis functions for instance)
 
 		res = np.zeros((np.shape(NL)[0],np.size(u)),dtype='float') #res = result.
@@ -252,14 +255,12 @@ def hessian_ker(state):
 				nlDer2 = np.dot(param2,basisder)
 
 				u = applyNL(nlDer1,MP12[g,:],state)
-				u = np.atleast_2d(u).transpose()
 				v = applyNL(nlDer2,MP12[h,:],state)
-				v = np.atleast_2d(v).transpose()
 
 				X1 = cv(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
 				X2 = cv(state.input[h*Nneur:(h+1)*Nneur],Basis,state)
 
-				Halbet = - state.dt*np.dot(X1,X2.transpose()*u*v*lamb)
+				Halbet = - state.dt*np.dot(X1*u*v*lamb,X2.transpose())
 
 				Hess_ker[g*Nneur*Nb:(g+1)*Nneur*Nb,h*Nneur*Nb:(h+1)*Nneur*Nb] = Halbet
 
@@ -277,9 +278,15 @@ def hessian_ker(state):
 
 	return (1./(math.log(2.)*Ns))*Hess_ker
 
-def subMembPot(state): #membrane potential before NL.
+def subMembPot(state,string): #membrane potential before NL.
 
-	Nsteps = int(state.total_time/state.dt) #total number of time steps.
+	if string=='training':
+
+		Nsteps = int(state.total_time/state.dt) #total number of time steps.
+
+	elif string=='test':
+
+		Nsteps = int(state.total_time_test/state.dt)
 
 	MP12 = np.zeros((state.Ng,Nsteps),dtype='float')
 
@@ -290,7 +297,15 @@ def subMembPot(state): #membrane potential before NL.
 
 		Basis = state.basisKer
 
-		X = cv(state.input[g*Nneur:(g+1)*Nneur],Basis,state) #+1 in there.
+		if string=='training':
+
+			inp = state.input[g*Nneur:(g+1)*Nneur]
+
+		elif string=='test':
+
+			inp = state.input_test[g*Nneur:(g+1)*Nneur]
+
+		X = cv(inp,Basis,state) #+1 in there.
 
 		MP12[g,:] = np.dot(state.paramKer[g*Nneur*Nb:(g+1)*Nneur*Nb],X)
 
@@ -299,11 +314,12 @@ def subMembPot(state): #membrane potential before NL.
 def MembPot(state):
 
 	Nsteps = int(state.total_time/state.dt) # total number of time-steps.
-	ParKer = state.paramKer 
 
 	MP = np.zeros(Nsteps)
 	Nneurons = int(state.N/state.Ng) # number of neurons in compartment.
 	Nbnl = np.shape(state.basisNL)[0] # number of basis functions for NL.
+
+	ParKer = state.paramKer
 
 	MP12 = state.sub_membrane_potential
 

@@ -27,9 +27,11 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 		self.paramKer = Model.paramKer
 		self.paramNL = Model.paramNL
 
+		self.lls = Model.lls
+
 		self.likelihood = diff.likelihood(Model)
 
-		self.sub_membrane_potential = diff.subMembPot(Model)
+		self.sub_membrane_potential = diff.subMembPot(Model,'training')
 		self.membrane_potential = diff.MembPot(Model)
 
 	def iter_ker(self,rate): 
@@ -46,7 +48,7 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 
 	def update(self):
 
-		self.sub_membrane_potential = diff.subMembPot(self)
+		self.sub_membrane_potential = diff.subMembPot(self,'training')
 		self.membrane_potential = diff.MembPot(self)
 
 		self.likelihood = diff.likelihood(self)
@@ -117,14 +119,11 @@ def BlockCoordinateAscent(Model):
 	plt.draw()
 	plt.ion()
 
+	gs = gridspec.GridSpec(2,1)
+
 	fig2 = plt.figure()
 	fig2.show()
-	ax5 = fig2.add_subplot(111)
-	plt.ion()	
-
-	fig3 = plt.figure()
-	fig3.show()
-	ax6 = fig3.add_subplot(111)
+	ax5 = fig2.add_subplot(gs[0,0])
 	plt.ion()	
 
 	iter_tot = 200.	
@@ -147,19 +146,11 @@ def BlockCoordinateAscent(Model):
 			print "count ker:", cnt_ker
 			cnt_ker = cnt_ker + 1.
 
-			ax1.plot(np.dot(state.paramKer[-10:-6],state.basisKer))
-			ax2.plot(np.dot(state.paramKer[:4],state.basisKer))
+			ax1.plot(np.dot(state.paramKer[-11:-6],state.basisKer))
+			ax2.plot(np.dot(state.paramKer[:5],state.basisKer))
 			ax3.plot(np.dot(state.paramKer[-6:-1],state.basisASP))
 			ax4.plot(state.membrane_potential[:3000])
 			fig1.canvas.draw()			
-
-			h_sub = np.histogram(state.sub_membrane_potential,bins = 1000,range=[-80.,80.])
-			h_aft = np.histogram(state.membrane_potential,bins = 1000,range=[-80,80])
-			
-			ax6.plot(h_sub[1][:-1],h_sub[0])
-			ax6.plot(h_aft[1][:-1],h_aft[0])
-
-			fig3.canvas.draw()
 			
 			time.sleep(0.05)
 
@@ -179,6 +170,8 @@ def BlockCoordinateAscent(Model):
 				
 			th = state.paramKer[-1]
 
+			state.lls = state.lls + [ll]
+
 			print "LL: ",ll,"diff: ",diff_ker,"thresh: ",th
 
 		diff_nl = 100.
@@ -189,27 +182,23 @@ def BlockCoordinateAscent(Model):
 
 		V = np.arange(state.bnds[0],state.bnds[1],(state.bnds[1]-state.bnds[0])*0.00001)
 
-		Y = fun.sigmoid([-25.,50.,1.,1./25.],37.69*V)/5.
+		Y = fun.sigmoid([0.,25.,1.,1./25.],37.69*V)/1.
 		ax5.plot(V,Y)
 
 		while diff_nl > 0.:
 
-			V = np.arange(state.bnds[0],state.bnds[1],(state.bnds[1]-state.bnds[0])*0.00001)
+			dv = (state.bnds[1]-state.bnds[0])*0.00001
+
+			V = np.arange(state.bnds[0],state.bnds[1],dv)
+			
 			NL = np.dot(state.paramNL,state.basisNL)
 
 			ax5.plot(V,NL)
+
 			fig2.canvas.draw()
+
 			ax4.plot(state.membrane_potential[:3000])
 			fig1.canvas.draw()
-
-			h_sub = np.histogram(state.sub_membrane_potential,bins = 1000,range=[-80.,80.])
-			h_aft = np.histogram(state.membrane_potential,bins = 1000,range=[-80,80])
-			
-			ax6.plot(h_sub[1][:-1],h_sub[0])
-			ax6.plot(h_aft[1][:-1],h_aft[0])
-			ax6.set_ylim([0,1000.])
-
-			fig3.canvas.draw()
 			
 			time.sleep(0.005)
 
@@ -226,6 +215,8 @@ def BlockCoordinateAscent(Model):
 			diff_nl = abs(np.around((state.likelihood - l0)*10000.))
 
 			print "count NL: ",cnt_nl
+			
+			state.lls = state.lls + [state.likelihood]
 
 			print "ll: ",state.likelihood,"diff: ",diff_nl
 
@@ -239,5 +230,5 @@ def BlockCoordinateAscent(Model):
 		np.savetxt('params_nl.txt',params_nl)
 		np.savetxt('params_ker.txt',params_ker)		
 		
-	return state.paramNL,state.paramKer,state.likelihood
+	return state.paramNL,state.paramKer,state.lls
 

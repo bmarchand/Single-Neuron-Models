@@ -51,22 +51,23 @@ class SpikingMechanism: #gather parameters for spiking.
 
 	dt = 1. #[ms]
 	strh = 25.
-	compartments = 1 #number of subgroups. each of them has a non-linearity.
-	non_linearity = [[-strh,2*strh,1.,1/strh]]#,[-strh,2*strh,1.,1./strh]] 
-	threshold = 25. #bio-inspired threshold value.
+	Ng = 1 #number of subgroups. each of them has a non-linearity.
+	non_linearity = [[0.,strh,1.,1/strh]]#,[-strh,2*strh,1.,1./strh]] 
+	threshold = 15. #bio-inspired threshold value.
 	PSP_size = 25. # mV: Roughly std of the memb. pot. in a compartment before NL 	  
 	ASP_size = 10. # [mV] size of After-Spike-Potential (ASP)
 	ASP_time = 200. #[ms] time-constant of decay ASP
 	ASP_total = 1000. #[ms] total length of ASP
 	ASP_total_st = ASP_total/dt #same but in time-steps unit.
-	delta_v = 5.#[mv]thresh. selectivity. In LNLN-model, will be one. rest will adapt.
+	delta_v = 1.#[mv]thresh. selectivity. In LNLN-model, will be one. rest will adapt.
 	lambda0 = 1. #[mV]firing value at threshold. 
-	in_rate = 20. #with these parameters, in_rate = 20 -> ~8Hz output
+	in_rate = 25. #with these parameters, in_rate = 20 -> ~8Hz output
 
 class RunParameters:
 
-	total_time = 600000. #total simulation time
-	N = 6. #number of presynaptic neurons
+	total_time = 400000. #total simulation time
+	total_time_test = 10000.
+	N = 12. #number of presynaptic neurons
 	
 class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters): 
 # Neuron = synapses + spiking mechanisms + parameters.
@@ -79,17 +80,35 @@ class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters):
 	
 		self.input = [] #input will be a list of list of input spike times.
                         #one list per presynaptic neuron.
+
+		self.input_test = []
+
 		for i in range(self.N):
 
-			SpikeTrain = fun.spike_train(self) #self contains params. (e.g  in_rate)
+			SpikeTrain = fun.spike_train(self,'training') #self contains params. (e.g  in_rate)
+			SpikeTrain_test = fun.spike_train(self,'test')
+
 			self.input.append(SpikeTrain) #append Poisson spiketrain with in_rate.
+			self.input_test.append(SpikeTrain_test)			
 
 	def run(self): #generate output from input and spike mechanism.
 
-		ctrl = control = 'on' #in case you wanna plot stuff.
-		self.output,self.membrane_potential = mech.SpikeGeneration(self,ctrl)
+		ctrl = control = 'off' #in case you wanna plot stuff.
+		out,v = mech.SpikeGeneration(self.input,self,ctrl,'training')
+
+		self.output = out
+		self.membrane_potential = v
+
 		self.output_rate = len(self.output)/(0.001*self.total_time) #[Hz]
 
+		self.output_test = []
+
+		for i in range(100):
+
+			out_test,v_test = mech.SpikeGeneration(self.input_test,self,ctrl,'test')
+
+			self.output_test = self.output_test + [out_test]
+		
 	def plot(self): #plot memb pot and its histogram.
 	
 		h = np.histogram(self.membrane_potential,bins=1000.)
@@ -104,12 +123,13 @@ class FitParameters: # FitParameters is one component of the TwoLayerModel class
 	dt = 1. #[ms]
 	N = 12  # need to define it several times for access purposes.
 	Ng = 1 # number of nsub_groups
-	N_cos_bumps = 5 #number of PSP(ker) basis functions.
+	compartment = 1
+	N_cos_bumps = 6 #number of PSP(ker) basis functions.
 	len_cos_bumps = 300. #ms. total length of the basis functions 
 	N_knots_ASP = 4.# number of knots for natural spline for ASP (unused)
 	N_knots = 10. # number of knots for NL (unused)
-	knots = range(-4,5,2) #knots for NL (unused)
-	bnds = [-5.,5.] #[mV] domain over which NL is defined
+	knots = range(-1,4,1) #knots for NL (unused)
+	bnds = [-2.,4.] #[mV] domain over which NL is defined
 	knots_ASP = range(int(200./dt),int(1000./dt),int(200/dt) ) #knots for ASP (unused)
 	bnds_ASP = [0,800./dt] # domain over which ASP defined. [timesteps]
 	basisNL = fun.Tents(knots,bnds,100000.) #basis for NL (splines)
@@ -136,6 +156,8 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 		para = fun.Ker2Param(v,self.basisNL)
 
 		self.paramNL = para
+
+		self.lls = []
 		
 		Nb = self.basisKer.shape[0]     #just to make it shorter
 		self.paramKer = np.zeros(int(self.N*Nb+self.basisASP.shape[0]+1)) 
@@ -148,8 +170,11 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 		self.output = [neuron.output]
 		self.paramKer[-1] = -math.log(len(neuron.output)/Nsteps) #initialize for fit.
 
-		self.sub_membrane_potential = diff.subMembPot(self)
+		self.sub_membrane_potential = diff.subMembPot(self,'training')
 		self.membrane_potential = diff.MembPot(self)
+
+		self.input_test = neuron.input_test
+		self.output_test = neuron.output_test
 
 	def normalize_basis(self):
 
@@ -161,15 +186,31 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 
 	def membpot(self):
 
-		self.sub_membrane_potential = diff.subMembPot(self)
+		self.sub_membrane_potential = diff.subMembPot(self,'training')
 		self.membrane_potential = diff.MembPot(self)
 
 	def fit(self): #fit with block cooridinate ascend. not working yet.
 
-		self.paramNL,self.paramKer,self.likelihood = optim.BlockCoordinateAscent(self)
+		self.paramNL,self.paramKer,self.lls = optim.BlockCoordinateAscent(self)
+
+	def test(self):
+
+		Nb = self.basisKer.shape[0]
+
+		self.out_model_test = []
+		self.sub_memb_pot_test = diff.subMembPot(self,'test')
+
+		for i in range(100):
+
+			print i		
+
+			self.out_model_test = self.out_model_test + [mech.run_model(self.input_test,self)]
+
+		self.delta_md = 4.
+
+		self.Md = fun.SimMeas(self.out_model_test,self.output_test,self,self.delta_md)
 
 	def plot(self): #under-developed plot method.
 
-		print self.likelihood,self.paramKer
-
+		print self.likelihood
 

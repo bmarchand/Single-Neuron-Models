@@ -14,36 +14,49 @@ model.fit()
 
 model.membpot() #"refresh" the membrane potential values. to compare with what the model does. because parameters have been changed by the fit but not the mp.
 
-prob = neuron.membrane_potential
-
-prob_mod = model.membrane_potential
-
-
-
-h = np.histogram(prob,bins=1000.,range=[-80.,80.])
-h_mod = np.histogram(prob_mod,bins=1000.,range=[-80.,80.])
-
-fig6 = plt.figure()
-
-ax78 = fig6.add_subplot(111)
-
-ax78.plot(h[1][:-1],h[0])
-ax78.plot(h_mod[1][:-1],h_mod[0])
-
 V = np.arange(model.bnds[0],model.bnds[1],(model.bnds[1]-model.bnds[0])*0.00001)
 
-Y = fun.sigmoid([-25.,50.,1.,1./25.],37.69*V)/5.
+Y = fun.sigmoid([0.,25.,1.,1./25.],37.69*V)/5.
 
 fig5 = plt.figure()
 
 ax = fig5.add_subplot(111)
 
+
+NL = np.dot(model.paramNL,model.basisNL)
+
 ax.plot(V,Y)
-ax.plot(V,np.dot(model.basisNL,model.paramNL))
+ax.plot(V,NL)
 
 fig5.show()
 
+fig6 = plt.figure()
 
+axker = fig6.add_subplot(111)
+
+Ker = np.zeros((neuron.N,model.len_cos_bumps),dtype='float')
+
+Nb = model.basisKer.shape[0]
+
+Ker[-1,:] = np.dot(model.paramKer[:Nb],model.basisKer)
+
+axker.plot(Ker[-1,:])
+axker.plot(neuron.PSP_size*neuron.synapses.ker[-1,:model.len_cos_bumps]/38.)
+
+fig6.show()
+
+fig7 = plt.figure()
+
+axlls = fig7.add_subplot(111)
+
+axlls.plot(model.lls,'bo')
+
+fig7.show()
+
+model.test()
+
+print "Md: ",model.Md
+	
 
 
 

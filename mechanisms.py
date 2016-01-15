@@ -5,21 +5,31 @@ import matplotlib.pylab as plt
 import copy
 import os
 
-def SpikeGeneration(neuron,control):#neuron contains input spike-trains and a sp mech 
+import diff_calc as diff
 
-	Nsteps = int(neuron.total_time/neuron.dt) #total number of timesteps
+def SpikeGeneration(inp,neuron,control,string):#neuron contains input spike-trains and a sp mech 
+
+	if string=='training':
+
+		T = neuron.total_time
+
+	elif string=='test':
+
+		T = neuron.total_time_test
+
+	Nsteps = int(T/neuron.dt) #total number of timesteps
 
 	MP = np.zeros((Nsteps,),dtype='float') #membrane potential that the model uses.
                                   
-	inp_tmp = copy.copy(neuron.input) #if no copy input is emptied (we use pop)
+	inp_tmp = copy.copy(inp) #if no copy input is emptied (we use pop)
 
 	output = [] #where output spike trains are stored.
 
-	for g in range(neuron.compartments): #compartments = groups with their own NL
+	for g in range(neuron.Ng): #Ng = groups with their own NL
 
 		MP_part = np.zeros((Nsteps,),dtype='float') #memb.pot. before NL within comp. 
 
-		nsyn = int(neuron.N/neuron.compartments) #number of synapse in a group.
+		nsyn = int(neuron.N/neuron.Ng) #number of synapse in a group.
 
 		for cnt in range(nsyn): #loop over the synapses in the compartment/group
 
@@ -34,7 +44,7 @@ def SpikeGeneration(neuron,control):#neuron contains input spike-trains and a sp
 				bndupk = min(len_ker,Nsteps-t) #because could go beyons maximal size.
 				size = neuron.PSP_size #~25 in our case.
 				kerns = neuron.synapses.ker # ~1 of size.
-				indik = int(g*nsyn+cnt) # kerns is for the entire neurons.
+				indik = int(g*nsyn+cnt) # kerns is for the entire neuron.
 
 				MP_part[t:bndup] = MP_part[t:bndup] + size*kerns[indik,:bndupk]
 
@@ -44,6 +54,7 @@ def SpikeGeneration(neuron,control):#neuron contains input spike-trains and a sp
 		if control=='on':
 		
 			plt.plot(MP_part)
+			print g
 			plt.plot(fun.sigmoid(neuron.non_linearity[g],MP_part))
 			plt.show()
 		
@@ -78,7 +89,59 @@ def SpikeGeneration(neuron,control):#neuron contains input spike-trains and a sp
 
 			MP[t:bndup] = MP[t:bndup] - size*expfun[:bndupk] # can't convolve here.
 
-	print MP_part.std()
-
 	return output, MP
+
+def run_model(inp,model):
+
+	Nsteps = int(model.total_time_test/model.dt) # total number of time-steps.
+
+	MP = np.zeros(Nsteps)
+	Nneurons = int(model.N/model.Ng) # number of neurons in compartment.
+	Nbnl = np.shape(model.basisNL)[0] # number of basis functions for NL.
+
+	MP12 = model.sub_memb_pot_test
+
+	for g in range(model.Ng): #loop over compartments. 
+
+		Mp_g = MP12[g,:] 
+
+		F = model.basisNL 
+		NL = np.dot(model.paramNL[g*Nbnl:(g+1)*Nbnl],F)
+
+		dv = (model.bnds[1] - model.bnds[0])*0.00001
+
+		Mp_g = Mp_g/dv
+		Mp_g = np.around(Mp_g)
+		Mp_g = Mp_g.astype('int') + 50000
+
+		Mp_g[Mp_g>99999] = 99999
+		Mp_g[Mp_g<0] = 0
+
+		Mp_g = NL[Mp_g] #NL is an array with mV.
+
+		MP = MP + Mp_g
+
+	Nbasp = model.basisASP.shape[0]
+
+	ASP = np.dot(model.paramKer[(-Nbasp-1):-1],model.basisASP)
+
+	out_model_test = []
+
+	for t in range(Nsteps):
+
+		lamb = np.exp(MP[t] - model.paramKer[-1])
+
+		p = lamb*model.dt
+
+		if random.random() < p:
+
+			out_model_test = out_model_test + [t*model.dt]
+
+			bndup = min(Nsteps,t + ASP.size)
+			bndupk = min(ASP.size,Nsteps-t)
+			
+			MP[t:bndup] = MP[t:bndup] - ASP[:bndupk] # can't convolve
+
+	return  out_model_test
+
 	

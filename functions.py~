@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pylab as plt
 import random
 import copy
+from scipy.signal import fftconvolve
 
 def alpha_fun(tau_r,tau_d,dt,L,control='off'): #alpha functions for kernels.
  
@@ -39,12 +40,19 @@ def jitter(r,per=0.1): #add 10% of noise to r.
 
 	return r*(1+per*2*(random.random()-0.5))
 
-def spike_train(neuron): #generate Poisson spike train.
+def spike_train(neuron,string): #generate Poisson spike train.
 
 	train = []
 
+	if string=='training':
 
-	while np.sum(train)<neuron.total_time:
+		T = neuron.total_time
+
+	elif string=='test':
+
+		T = neuron.total_time_test
+
+	while np.sum(train) < T:
 
 		tmp_t = np.random.exponential(scale=1000./jitter(neuron.in_rate)) #ISI
 
@@ -65,7 +73,7 @@ def sigmoid(l,x):
 	return y
 
 
-def CosineBasis(K,T,dt,a=1.8,c=0.): #cosine function on logarithm scale. truncated.
+def CosineBasis(K,T,dt,a=1.9,c=0.): #cosine function on logarithm scale. truncated.
 	
 	F = np.zeros((K,T/dt),dtype='float') 
 	I = np.arange(T/dt)*dt
@@ -193,8 +201,6 @@ def Tents(knots,bnds,total_length):#uses knots and bnds to keep same syntax as s
 
 	delta = total_length/(Nb-2)
 
-	print delta
-
 	F = np.zeros((len(knots)+1,total_length),dtype='float')
 
 	F[0,:delta] = np.arange(delta,0,-1)
@@ -267,6 +273,61 @@ def Ker2Param(ker,basis): #CRUCIAL.
 	
 	return paramKer
 
+def SimMeas(out1,out2,model,delta):
+
+	conv1 = np.zeros((model.total_time_test/model.dt),dtype='float')
+	conv2 = np.zeros((model.total_time_test/model.dt),dtype='float')
+
+	for i in range(100):
+
+		outt1 = out1[i]
+		outt2 = out2[i]
+
+		outt1 = np.array(outt1)
+		outt1 = np.around(outt1/model.dt)
+		outt1 = outt1.astype('int')
+
+		outt2 = np.array(outt2)
+		outt2 = np.around(outt2/model.dt)
+		outt2 = outt2.astype('int')
+
+		conv1_tmp = np.zeros((model.total_time_test/model.dt),dtype='float')
+		conv1_tmp[outt1-int(delta/model.dt)] = 1.
+
+		conv2_tmp = np.zeros((model.total_time_test/model.dt),dtype='float')
+		conv2_tmp[outt2] = 1.
+
+		conv2 = conv2 + 0.01*conv2_tmp
+
+		conv1 = conv1 + 0.01*conv1_tmp
+	
+	ker = np.ones((int(2*delta/model.dt)),dtype='float')
+
+	figconv = plt.figure()
+
+	axc = figconv.add_subplot(111)
+
+	conv1_cvd = fftconvolve(conv1,ker)[:conv1.size]
+	conv2_cvd = fftconvolve(conv2,ker)[:conv2.size]
+
+	axc.plot(conv1)
+	axc.plot(conv2)
+
+	figconv.show()
+
+	SP = np.sum(conv1_cvd*conv2)
+
+	N1 = np.sum(conv1_cvd*conv1)
+	N2 = np.sum(conv2_cvd*conv2)
+
+	print SP,N1,N2
+
+	Md = 2*SP/(N1+N2)
+
+	return Md
+
+
+	
 
 
 
