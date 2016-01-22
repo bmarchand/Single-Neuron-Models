@@ -107,11 +107,11 @@ def applyNL(NL,u,state): #crucial piece of code to apply NL to membrane potentia
 
 	dv = (state.bnds[1] - state.bnds[0])*0.00001 
 
-	u = u/dv
+	u = (u-state.bnds[0])/dv
 	u = np.around(u)
-	u = u.astype('int') + 50000 #indices need to be recentered. 0mV -> 50000 -> 0mV
+	u = u.astype('int') #indices need to be recentered. 0mV -> 50000 -> 0mV
 	
-	u[u>99999] = 99999
+	u[u>99999] = 99999.
 	u[u<0] = 0
 	
 	u = NL[u] # The values in the NL array are in mV.
@@ -122,11 +122,11 @@ def applyNL_2d(NL,u,state): #same thing, but when dimensions are different.
 
 	dv = (state.bnds[1] - state.bnds[0])*0.00001
 
-	u = u/dv
+	u = (u-state.bnds[0])/dv
 	u = np.around(u)
-	u = u.astype('int') + 50000 #need to recenter.
+	u = u.astype('int') #need to recenter.
 
-	u[u<0] = 0
+	u[u<0] = 0.
 	u[u>99999] = 99999
 
 	if len(u.shape)==1: #if u is 1D but NL 2D (basis functions for instance)
@@ -305,7 +305,7 @@ def subMembPot(state,string): #membrane potential before NL.
 
 			inp = state.input_test[g*Nneur:(g+1)*Nneur]
 
-		X = cv(inp,Basis,state) #+1 in there.
+		X = cv(inp,Basis,state)[:,:Nsteps] #+1 in there.
 
 		MP12[g,:] = np.dot(state.paramKer[g*Nneur*Nb:(g+1)*Nneur*Nb],X)
 
@@ -332,9 +332,9 @@ def MembPot(state):
 
 		dv = (state.bnds[1] - state.bnds[0])*0.00001
 
-		Mp_g = Mp_g/dv
+		Mp_g = (Mp_g-state.bnds[0])/dv
 		Mp_g = np.around(Mp_g)
-		Mp_g = Mp_g.astype('int') + 50000
+		Mp_g = Mp_g.astype('int')
 
 		Mp_g[Mp_g>99999] = 99999
 		Mp_g[Mp_g<0] = 0

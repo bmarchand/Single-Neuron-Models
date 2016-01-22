@@ -89,7 +89,7 @@ def SpikeGeneration(inp,neuron,control,string):#neuron contains input spike-trai
 
 			MP[t:bndup] = MP[t:bndup] - size*expfun[:bndupk] # can't convolve here.
 
-	return output, MP
+	return output, MP, MP_part
 
 def run_model(inp,model):
 
@@ -110,9 +110,9 @@ def run_model(inp,model):
 
 		dv = (model.bnds[1] - model.bnds[0])*0.00001
 
-		Mp_g = Mp_g/dv
-		Mp_g = np.around(Mp_g)
-		Mp_g = Mp_g.astype('int') + 50000
+		Mp_g = (Mp_g-model.bnds[0])/dv
+		Mp_g = np.floor(Mp_g)
+		Mp_g = Mp_g.astype('int')
 
 		Mp_g[Mp_g>99999] = 99999
 		Mp_g[Mp_g<0] = 0

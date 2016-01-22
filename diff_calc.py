@@ -17,7 +17,7 @@ def likelihood(state):
 
 	MP = state.membrane_potential # defined at the end of this file.
 
-	indices = np.around(np.array(state.output[0])/state.dt) #convert to time-step index. 
+	indices = np.floor(np.array(state.output[0])/state.dt) #convert to time-step index. 
 	indices = indices.astype('int')
 
 	Nsteps = int(state.total_time/state.dt)
@@ -55,7 +55,7 @@ def gradient_NL(state): #first of the gradient.
 
 		gr_NL[g*Nb:(g+1)*Nb,:] = applyNL_2d(state.basisNL,u,state) #apply NL to stack.
 
-	sptimes = np.around(np.array(state.output[0])/state.dt) #conversion to timestep
+	sptimes = np.floor(np.array(state.output[0])/state.dt) #conversion to timestep
 	sptimes = sptimes.astype('int') #has to be int to be an array of indices.
 	lambd = np.exp(MP) #MP contains the threshold. 
 
@@ -107,11 +107,11 @@ def applyNL(NL,u,state): #crucial piece of code to apply NL to membrane potentia
 
 	dv = (state.bnds[1] - state.bnds[0])*0.00001 
 
-	u = u/dv
-	u = np.around(u)
-	u = u.astype('int') + 50000 #indices need to be recentered. 0mV -> 50000 -> 0mV
+	u = (u-state.bnds[0])/dv
+	u = np.floor(u)
+	u = u.astype('int') #indices need to be recentered. 0mV -> 50000 -> 0mV
 	
-	u[u>99999] = 99999
+	u[u>99999] = 99999.
 	u[u<0] = 0
 	
 	u = NL[u] # The values in the NL array are in mV.
@@ -122,11 +122,11 @@ def applyNL_2d(NL,u,state): #same thing, but when dimensions are different.
 
 	dv = (state.bnds[1] - state.bnds[0])*0.00001
 
-	u = u/dv
-	u = np.around(u)
-	u = u.astype('int') + 50000 #need to recenter.
+	u = (u-state.bnds[0])/dv
+	u = np.floor(u)
+	u = u.astype('int') #need to recenter.
 
-	u[u<0] = 0
+	u[u<0] = 0.
 	u[u>99999] = 99999
 
 	if len(u.shape)==1: #if u is 1D but NL 2D (basis functions for instance)
@@ -179,7 +179,7 @@ def gradient_ker(state):
 
 	gr_ker[state.Ng*Nb*Nneur:-1,:] = - cv(output,state.basisASP,state)
 
-	sptimes = np.around(np.array(state.output[0])/dt) #no +1 or -1 here. it is in 									#cv(-), and MembPot(-)
+	sptimes = np.floor(np.array(state.output[0])/dt) #no +1 or -1 here. it is in 									#cv(-), and MembPot(-)
 	sptimes = sptimes.astype('int')
 
 	gr_ker = np.sum(gr_ker[:,sptimes],axis=1) - dt*np.sum(gr_ker*lamb,axis=1)
@@ -225,7 +225,7 @@ def hessian_ker(state):
 
 		Halthet = state.dt*np.sum(X1*v*lamb,axis=1)
 
-		sptimes = np.around(np.array(output[0])/state.dt)
+		sptimes = np.floor(np.array(output[0])/state.dt)
 		sptimes = sptimes.astype('int')
 
 		Hspik = state.dt*np.dot(X1[:,sptimes]*u[sptimes],X1[:,sptimes].transpose())
@@ -332,9 +332,9 @@ def MembPot(state):
 
 		dv = (state.bnds[1] - state.bnds[0])*0.00001
 
-		Mp_g = Mp_g/dv
-		Mp_g = np.around(Mp_g)
-		Mp_g = Mp_g.astype('int') + 50000
+		Mp_g = (Mp_g-state.bnds[0])/dv
+		Mp_g = np.floor(Mp_g)
+		Mp_g = Mp_g.astype('int')
 
 		Mp_g[Mp_g>99999] = 99999
 		Mp_g[Mp_g<0] = 0

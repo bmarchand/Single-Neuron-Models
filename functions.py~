@@ -54,7 +54,7 @@ def spike_train(neuron,string): #generate Poisson spike train.
 
 	while np.sum(train) < T:
 
-		tmp_t = np.random.exponential(scale=1000./jitter(neuron.in_rate)) #ISI
+		tmp_t = np.random.exponential(scale=1000./jitter(neuron.in_rate,per=0.5)) #ISI
 
 		tmp_t = neuron.dt*int(tmp_t/neuron.dt)
 
@@ -98,7 +98,7 @@ def NaturalSpline(knots,bnds,total_length):
 	
 	for i in range(len(c_knots)):
 		
-		c_knots[i] = np.around(((c_knots[i] - bnds[0])/(bnds[1]-bnds[0]))*total_length)
+		c_knots[i] = np.floor(((c_knots[i] - bnds[0])/(bnds[1]-bnds[0]))*total_length)
 	
 	v = np.arange(total_length)
 
@@ -132,7 +132,7 @@ def DerNaturalSpline(knots,bnds,total_length):
 
 	for i in range(len(c_knots)):
 		
-		c_knots[i] = np.around(((c_knots[i] - bnds[0])/(bnds[1]-bnds[0]))*total_length)
+		c_knots[i] = np.floor(((c_knots[i] - bnds[0])/(bnds[1]-bnds[0]))*total_length)
 	
 	v = np.arange(total_length)
 
@@ -168,7 +168,7 @@ def SecDerNaturalSpline(knots,bnds,total_length):
 
 	for i in range(len(c_knots)):
 		
-		c_knots[i] = np.around(((c_knots[i] - bnds[0])/(bnds[1]-bnds[0]))*total_length)
+		c_knots[i] = np.floor(((c_knots[i] - bnds[0])/(bnds[1]-bnds[0]))*total_length)
 	
 	v = np.arange(total_length)
 
@@ -190,57 +190,110 @@ def SecDerNaturalSpline(knots,bnds,total_length):
 		dk = (tmp1 - tmp2)*(1./(c_knots[-1]-c_knots[i-2]))
 
 		dkm1 = (tmp3 - tmp2)*(1./(c_knots[-1]-c_knots[-2]))
-
+ 
 		F[i,:] = dk - dkm1
 
 	return F
 
 def Tents(knots,bnds,total_length):#uses knots and bnds to keep same syntax as splines
 
-	Nb = len(knots)+2
+	knots.sort()
 
-	delta = total_length/(Nb-2)
+	dv = (bnds[1] - bnds[0])/total_length
 
-	F = np.zeros((len(knots)+1,total_length),dtype='float')
+	knots = [bnds[0]] + knots + [bnds[1]]
 
-	F[0,:delta] = np.arange(delta,0,-1)
+	for i in range(len(knots)):
 
-	F[-1,-delta:] = np.arange(delta)
+		knots[i] = int((knots[i]-bnds[0])/dv)
 
-	for i in range(1,Nb-2,1):
+	F = np.zeros((len(knots),total_length),dtype='float')
 
-		F[i,delta*i:delta*(i+1)] = np.arange(delta,0,-1)
-		F[i,delta*(i-1):delta*i] = np.arange(delta)
+	for i in range(1,len(knots)-1):
+
+		F[i,knots[i-1]:knots[i]] = np.arange(knots[i]-knots[i-1])
+
+		m = F[i,knots[i-1]:knots[i]].max()
+
+		d = knots[i+1]-knots[i]
+
+		print "d: ", d
+
+		F[i,knots[i]:knots[i+1]] = np.arange(d,0,-1.)*(float(m)/d)
+
+	F[0,:knots[1]] = np.arange(knots[1],0,-1)
+
+	F[-1,knots[-2]:] = np.arange(total_length-knots[-2])		
 
 	return F
 
 def DerTents(knots,bnds,total_length):#derivative of tent basis functions.for gradient
 
-	F = np.zeros((len(knots)+1,total_length),dtype='float')
+	knots.sort()
 
-	dv = (bnds[1] - bnds[0])*0.00001
+	dv = (bnds[1] - bnds[0])/total_length
 
-	Nb = len(knots)+2
+	knots = [bnds[0]] + knots + [bnds[1]]
 
-	delta = total_length/(Nb-2)
+	for i in range(len(knots)):
 
-	F[0,:delta] = -1./dv
-	F[-1,-delta:] = 1./dv
+		knots[i] = int((knots[i]-bnds[0])/dv)
 
-	for i in range(1,Nb-2,1):
+	F = np.zeros((len(knots),total_length),dtype='float')
 
-		F[i,delta*i:delta*(i+1)] = -1./dv
-		F[i,delta*(i-1):delta*i] = 1./dv
+	for i in range(1,len(knots)-1):
 
+		F[i,knots[i-1]:knots[i]] = 1./dv
+
+		m = float(knots[i]-knots[i-1])
+
+		d = knots[i+1]-knots[i]
+
+		F[i,knots[i]:knots[i+1]] = -(1./dv)*(float(m)/d)
+
+	F[0,:knots[1]] = -1./dv
+
+	F[-1,knots[-2]:] = 1./dv
+	
 	return F
 
 def SecDerTents(knots,bnds,total_length):
 
-	F = np.zeros((len(knots)+1,total_length),dtype='float')
+	F = np.zeros((len(knots)+2,total_length),dtype='float')
 
 	return F	
 
+def Cst(knots,bnds,total_length):
 
+	F = np.zeros((len(knots)+2,total_length),dtype='float')
+
+	dv = (bnds[1] - bnds[0])/total_length
+
+	knots = [bnds[0]] + knots + [bnds[1]]
+
+	for i in range(len(knots)):
+
+		knots[i] = int((knots[i]-bnds[0])/dv)
+
+	for i in range(len(knots)-1):
+
+		F[i,knots[i]:knots[i+1]] = 1.
+
+	F[-1,knots[-2]:] = 1.
+
+	return F	
+
+def CstDer(knots,bnds,total_length):
+
+	F = np.zeros((len(knots)+2,total_length),dtype='float')
+
+	return F
+
+def CstSecDer(knots,bnds,total_length):
+
+	F = np.zeros((len(knots)+2,total_length),dtype='float')
+
+	return F
 
 def SplineParamsforId(knots,bnds):
 
@@ -276,7 +329,9 @@ def Ker2Param(ker,basis): #CRUCIAL.
 def SimMeas(out1,out2,model,delta):
 
 	conv1 = np.zeros((model.total_time_test/model.dt),dtype='float')
+	conv1_cvd = np.zeros((model.total_time_test/model.dt),dtype='float')
 	conv2 = np.zeros((model.total_time_test/model.dt),dtype='float')
+	conv2_cvd = np.zeros((model.total_time_test/model.dt),dtype='float')
 
 	for i in range(100):
 
@@ -284,31 +339,39 @@ def SimMeas(out1,out2,model,delta):
 		outt2 = out2[i]
 
 		outt1 = np.array(outt1)
-		outt1 = np.around(outt1/model.dt)
+		outt1 = np.floor(outt1/model.dt)
 		outt1 = outt1.astype('int')
 
 		outt2 = np.array(outt2)
-		outt2 = np.around(outt2/model.dt)
+		outt2 = np.floor(outt2/model.dt)
 		outt2 = outt2.astype('int')
 
+		conv1_tmp_c = np.zeros((model.total_time_test/model.dt),dtype='float')
 		conv1_tmp = np.zeros((model.total_time_test/model.dt),dtype='float')
-		conv1_tmp[outt1-int(delta/model.dt)] = 1.
 
+		conv2_tmp_c = np.zeros((model.total_time_test/model.dt),dtype='float')
 		conv2_tmp = np.zeros((model.total_time_test/model.dt),dtype='float')
+
+		conv1_tmp_c[outt1-int(delta/model.dt)] = 1.
+		conv1_tmp[outt1] = 1.
+
+		conv2_tmp_c[outt2-int(delta/model.dt)] = 1.
 		conv2_tmp[outt2] = 1.
 
+		conv1 = conv1 + 0.01*conv1_tmp
 		conv2 = conv2 + 0.01*conv2_tmp
 
-		conv1 = conv1 + 0.01*conv1_tmp
-	
+		conv1_cvd = conv1_cvd + 0.01*conv1_tmp_c
+		conv2_cvd = conv2_cvd + 0.01*conv2_tmp_c
+
 	ker = np.ones((int(2*delta/model.dt)),dtype='float')
 
 	figconv = plt.figure()
 
 	axc = figconv.add_subplot(111)
 
-	conv1_cvd = fftconvolve(conv1,ker)[:conv1.size]
-	conv2_cvd = fftconvolve(conv2,ker)[:conv2.size]
+	conv1_cvd = fftconvolve(conv1_cvd,ker)[:conv1.size]
+	conv2_cvd = fftconvolve(conv2_cvd,ker)[:conv2.size]
 
 	axc.plot(conv1)
 	axc.plot(conv2)

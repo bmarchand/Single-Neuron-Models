@@ -34,17 +34,17 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 		self.sub_membrane_potential = diff.subMembPot(Model,'training')
 		self.membrane_potential = diff.MembPot(Model)
 
-	def iter_ker(self,rate): 
+	def iter_ker(self): 
 
 		invH = np.linalg.inv(self.hessian_ker)
 		
-		self.paramKer = self.paramKer - rate*np.dot(invH,self.gradient_ker)
+		self.paramKer = self.paramKer - np.dot(invH,self.gradient_ker)
 
-	def iter_NL(self,rate):
+	def iter_NL(self):
 
 		invH = np.linalg.pinv(self.hessian_NL)
 
-		self.paramNL = self.paramNL - rate*np.dot(invH,self.gradient_NL)
+		self.paramNL = self.paramNL - np.dot(invH,self.gradient_NL)
 
 	def update(self):
 
@@ -81,154 +81,172 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 
 	def renorm_basis(self):
 
-		NL = np.dot(self.paramNL,self.basisNL)
+		NL = np.dot(self.paramNL,self.basisNL) # (1,100000)
 
-		std = self.sub_membrane_potential.std()
-		mu = self.sub_membrane_potential.mean()
+		sptimes = np.floor(np.array(self.output)/self.dt) 
+		sptimes = sptimes.astype('int')
 
-		new_knots = [mu-2*std,mu-std,mu,mu+std,mu+2*std]
+		mp_sp_min = self.sub_membrane_potential[:,sptimes].min() #smallest mp spike
+		mp_sp_max = self.sub_membrane_potential[:,sptimes].max() #highest mp spike
 
-		self.basisNL = fun.NaturalSpline(new_knots,self.bnds,100000.)
-		self.basisNLder = fun.DerNaturalSpline(new_knots,self.bnds,100000.)
-		self.basisNLSecDer = fun.SecDerNaturalSpline(new_knots,self.bnds,100000.)
+		print "min_memb_pot: ",mp_sp_min,mp_sp_max
 
-		self.normalize_basis()
+		mu = self.sub_membrane_potential[:,sptimes].mean()
+		std = self.sub_membrane_potential[:,sptimes].std()
 
-		
+		new_bnds = [mp_sp_min,mp_sp_max]
+
+		dv = (new_bnds[1] - new_bnds[0])*0.00001 #
+
+		NL = diff.applyNL(NL,np.arange(new_bnds[0],new_bnds[1],dv),self) # need to have a vector with the values of the NL on the new axis, so that later, can get the parameters that correspond in the new basis.
+
+		self.bnds = new_bnds
+
+		dok = (mp_sp_max - mp_sp_min)*0.05
+
+		self.knots = [kn for kn in np.arange(mp_sp_min+dok,mp_sp_max-dok,dok)]
+
+		self.basisNL = fun.Tents(self.knots,self.bnds,100000.)
+		self.basisNLder = fun.DerTents(self.knots,self.bnds,100000.)
+		self.basisNLSecDer = fun.SecDerTents(self.knots,self.bnds,100000.)
+
+		dv = (self.bnds[1] - self.bnds[0])*0.00001 
+		v = np.arange(self.bnds[0],self.bnds[1],dv)
+		NL = np.atleast_2d(NL)
+		para = fun.Ker2Param(NL,self.basisNL)
+		self.paramNL = para		
+	
 def BlockCoordinateAscent(Model):
 
-	params_nl = []
-	params_ker = []
-
+	global state 
 	state = State(Model)
 
-	norm = abs(np.sum(state.gradient_ker**2)+np.sum(state.gradient_NL**2))
+	init_fun()
+	
+	while cnt > 5.:
 
-	cnt_ker = 1.
-	cnt_nl = 1.
+		init_tot()
+		
+		while diff_ker > 3.:
+
+			init_ker()
+			state.iter_ker()
+			state.update()
+
+			finish_ker(1000.)
+			
+		prepare_nl()
+
+		while diff_nl > 2.:
+
+			init_nl()		
+			state.iter_NL()
+			state.update()
+			finish_nl(100000.)
+			
+	return state.paramNL,state.paramKer,state.lls,state.basisNL,state.bnds
+
+#Below: Superficial layer of code for plotting, counting iterations and such.
+
+def init_fun():
 
 	gs = gridspec.GridSpec(4,1)
-
 	fig1 = plt.figure()
 	ax1 = fig1.add_subplot(gs[0,0])
 	ax2 = fig1.add_subplot(gs[1,0])
 	ax3 = fig1.add_subplot(gs[2,0])
 	ax4 = fig1.add_subplot(gs[3,0])
-
 	fig1.show()
 	plt.draw()
 	plt.ion()
-
 	gs = gridspec.GridSpec(2,1)
-
 	fig2 = plt.figure()
 	fig2.show()
 	ax5 = fig2.add_subplot(gs[0,0])
 	plt.ion()	
+	cnt = 40. #just need to be greater than 3.
 
-	iter_tot = 200.	
+	globals().update(locals())
 
-	params_nl = params_nl + [state.paramNL]
-	params_ker = params_ker + [state.paramKer]
+def init_tot():
 
-	while iter_tot > 3.:
+	global diff_ker,diff_nl,cnt
 
-		norm_ker = math.sqrt(abs(np.sum(state.gradient_ker**2)))
+	diff_ker = 100.
+	diff_nl = 100.
 
-		diff_ker = 100.
+	cnt = 0.
 
-		c0_ker = copy.copy(cnt_ker)
+def init_ker():
 
-		while diff_ker > 3.:
+	nk = state.basisKer.shape[0]
+	na = state.basisASP.shape[0]+1
 
-			l0 = copy.copy(state.likelihood)
-
-			print "count ker:", cnt_ker
-			cnt_ker = cnt_ker + 1.
-
-			ax1.plot(np.dot(state.paramKer[-11:-6],state.basisKer))
-			ax2.plot(np.dot(state.paramKer[:5],state.basisKer))
-			ax3.plot(np.dot(state.paramKer[-6:-1],state.basisASP))
-			ax4.plot(state.membrane_potential[:3000])
-			fig1.canvas.draw()			
+	ax1.plot(np.dot(state.paramKer[-na-nk:-na],state.basisKer))
+	ax2.plot(np.dot(state.paramKer[:nk],state.basisKer))
+	ax3.plot(np.dot(state.paramKer[-na:-1],state.basisASP))
+	ax4.plot(state.membrane_potential[:3000])
+	fig1.canvas.draw()			
 			
-			time.sleep(0.05)
+	time.sleep(0.05)
 
-			if cnt_ker<10:
-				rate = 1.
-			else:
-				rate = 1.
+	l0 = copy.copy(state.likelihood)
 
-			state.iter_ker(rate)
-			state.update()
+	global cnt
+	cnt = cnt + 1
 
-			params_ker = params_ker + [state.paramKer]
+	globals().update(locals())
 
-			ll = state.likelihood
+def finish_ker(tol_fact):
 
-			diff_ker = abs(np.around((ll - l0)*1000.))
+	ll = state.likelihood
+
+	diff_ker = abs(np.floor((ll - l0)*tol_fact))
 				
-			th = state.paramKer[-1]
+	th = state.paramKer[-1]
 
-			state.lls = state.lls + [ll]
+	state.lls = state.lls + [ll]
 
-			print "LL: ",ll,"diff: ",diff_ker,"thresh: ",th
+	print "(ker)","LL: ",ll,"diff: ",diff_ker,"thresh: ",th
 
-		diff_nl = 100.
+	globals().update(locals())
 
-		state.renormalize()
+def prepare_nl():
 
-		c0_nl = copy.copy(cnt_nl)
+	state.renorm_basis()
+	state.update()
 
-		V = np.arange(state.bnds[0],state.bnds[1],(state.bnds[1]-state.bnds[0])*0.00001)
+	globals().update(locals())
 
-		Y = fun.sigmoid([0.,25.,1.,1./25.],37.69*V)/5.
-		ax5.plot(V,Y)
+def init_nl():
 
-		while diff_nl > 0.:
+	std = state.sub_membrane_potential.std()
+	dv = (state.bnds[1]-state.bnds[0])*0.00001
+	V = np.arange(state.bnds[0],state.bnds[1],dv)			
+	NL = np.dot(state.paramNL,state.basisNL)
+	Y = fun.sigmoid([0.,25.,1.,1./25.],(36./std)*V)/2.
+	ax5.plot(V,Y)
+	ax5.plot(V,NL)
 
-			dv = (state.bnds[1]-state.bnds[0])*0.00001
+	fig2.canvas.draw()
+	ax4.plot(state.membrane_potential[:3000])
+	fig1.canvas.draw()
 
-			V = np.arange(state.bnds[0],state.bnds[1],dv)
+	global l0
+	l0 = copy.copy(state.likelihood)
 			
-			NL = np.dot(state.paramNL,state.basisNL)
+	time.sleep(0.005)
 
-			ax5.plot(V,NL)
+	globals().update(locals())
 
-			fig2.canvas.draw()
+def finish_nl(tol_fact):
 
-			ax4.plot(state.membrane_potential[:3000])
-			fig1.canvas.draw()
-			
-			time.sleep(0.005)
+	global diff_nl
+	diff_nl = abs(np.floor((state.likelihood - l0)*tol_fact))
+	state.lls = state.lls + [state.likelihood]
 
-			cnt_nl = cnt_nl + 1.
-			rate_nl = 1.
-			
-			l0 = copy.copy(state.likelihood)
-
-			state.iter_NL(rate_nl)
-			state.update()
-
-			params_nl = params_nl + [state.paramNL]
-
-			diff_nl = abs(np.around((state.likelihood - l0)*10000.))
-
-			print "count NL: ",cnt_nl
-			
-			state.lls = state.lls + [state.likelihood]
-
-			print "ll: ",state.likelihood,"diff: ",diff_nl
-
-		iter_tot = (cnt_nl-c0_nl) + (cnt_ker - c0_ker)	
-
-		print "ITER_TOT: ", iter_tot
-
-		params_nl = np.array(params_nl)
-		params_ker = np.array(params_ker)
-
-		np.savetxt('params_nl.txt',params_nl)
-		np.savetxt('params_ker.txt',params_ker)		
-		
-	return state.paramNL,state.paramKer,state.lls
+	print "(NL)","LL: ",state.likelihood,"diff: ",diff_nl
+	global cnt
+	cnt = cnt + 1.
+	globals().update(locals())
 

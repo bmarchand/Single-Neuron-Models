@@ -12,10 +12,10 @@ class Synapses:
 	tr_in = 3. #[ms] rise time inhibitory kernel
 	td_in = 80. #[ms] decay time inhibitory kernel
 	tr_exc = 1. #[ms] rise ' ' ' excitatory ' ' ' 
-	td_exc = 20. #same
+	td_exc = 30. #same
 	N = 12 #number of pre-synaptic neurons
 
-	def __init__(self,size,dt=1.,len_ker=300.):
+	def __init__(self,size,dt=0.025,len_ker=300.):
 
 		self.dt = dt # timestep [ms]
 		self.len_ker = len_ker #[ms] total-time over which the kernel is defined.
@@ -49,23 +49,23 @@ class Synapses:
 
 class SpikingMechanism: #gather parameters for spiking.
 
-	dt = 1. #[ms]
+	dt = 0.025 #[ms]
 	strh = 25.
 	Ng = 1 #number of subgroups. each of them has a non-linearity.
 	non_linearity = [[0.,strh,1.,1/strh]]#,[-strh,2*strh,1.,1./strh]] 
-	threshold = 15. #bio-inspired threshold value.
-	PSP_size = 25. # mV: Roughly std of the memb. pot. in a compartment before NL 	  
+	threshold = 10. #bio-inspired threshold value.
+	PSP_size = 25.# mV: Roughly std of the memb. pot. in a compartment before NL 	  
 	ASP_size = 10. # [mV] size of After-Spike-Potential (ASP)
 	ASP_time = 200. #[ms] time-constant of decay ASP
 	ASP_total = 1000. #[ms] total length of ASP
 	ASP_total_st = ASP_total/dt #same but in time-steps unit.
-	delta_v = 1.#[mv]thresh. selectivity. In LNLN-model, will be one. rest will adapt.
+	delta_v = 1. #[mv]thresh. selectivity. In LNLN-model, will be one. rest will adapt.
 	lambda0 = 1. #[mV]firing value at threshold. 
 	in_rate = 25. #with these parameters, in_rate = 20 -> ~8Hz output
 
 class RunParameters:
 
-	total_time = 400000. #total simulation time
+	total_time = 600000. #total simulation time
 	total_time_test = 10000.
 	N = 12. #number of presynaptic neurons
 	
@@ -74,7 +74,6 @@ class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters):
 	def __init__(self):
 
 		self.synapses = Synapses(self.PSP_size,dt=self.dt) #instance of synapse class.
-		self.add_input() #method defined below
 
 	def add_input(self):
 	
@@ -94,10 +93,11 @@ class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters):
 	def run(self): #generate output from input and spike mechanism.
 
 		ctrl = control = 'off' #in case you wanna plot stuff.
-		out,v = mech.SpikeGeneration(self.input,self,ctrl,'training')
+		out,v,sub_memb = mech.SpikeGeneration(self.input,self,ctrl,'training')
 
 		self.output = out
 		self.membrane_potential = v
+		self.sub_memb_pot = sub_memb
 
 		self.output_rate = len(self.output)/(0.001*self.total_time) #[Hz]
 
@@ -105,7 +105,7 @@ class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters):
 
 		for i in range(100):
 
-			out_test,v_test = mech.SpikeGeneration(self.input_test,self,ctrl,'test')
+			out_test,v_test,s = mech.SpikeGeneration(self.input_test,self,ctrl,'test')
 
 			self.output_test = self.output_test + [out_test]
 		
@@ -118,25 +118,31 @@ class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters):
 		plt.plot(absc,self.membrane_potential)
 		plt.show()
 
-class FitParameters: # FitParameters is one component of the TwoLayerModel class
+class FitParameters(): # FitParameters is one component of the TwoLayerModel class
+
+	def __init__(self,basis='Tents'):
+
+		self.basis_str = basis
 
 	dt = 1. #[ms]
 	N = 12  # need to define it several times for access purposes.
 	Ng = 1 # number of nsub_groups
 	compartment = 1
-	N_cos_bumps = 6 #number of PSP(ker) basis functions.
+	N_cos_bumps = 7 #number of PSP(ker) basis functions.
 	len_cos_bumps = 300. #ms. total length of the basis functions 
-	N_knots_ASP = 4.# number of knots for natural spline for ASP (unused)
+	N_knots_ASP = 5.# number of knots for natural spline for ASP (unused)
 	N_knots = 10. # number of knots for NL (unused)
-	knots = range(-1,4,1) #knots for NL (unused)
-	bnds = [-2.,4.] #[mV] domain over which NL is defined
-	knots_ASP = range(int(200./dt),int(1000./dt),int(200/dt) ) #knots for ASP (unused)
-	bnds_ASP = [0,800./dt] # domain over which ASP defined. [timesteps]
+	knots = range(-50,60,10) #knots for NL (unused)
+	bnds = [-100.,100.] #[mV] domain over which NL is defined
+	knots_ASP = range(int(100./dt),int(600./dt),int(100/dt) ) #knots for ASP (unused)
+	bnds_ASP = [0,600./dt] # domain over which ASP defined. [timesteps]
+
 	basisNL = fun.Tents(knots,bnds,100000.) #basis for NL (splines)
 	basisNLder = fun.DerTents(knots,bnds,100000.) #derivative of above.
 	basisNLSecDer = fun.SecDerTents(knots,bnds,100000.) #second derivative.
-	basisKer = fun.CosineBasis(N_cos_bumps,len_cos_bumps,dt)[1:,:] #basis for kernels.
-	basisASP = fun.Tents(knots_ASP,bnds_ASP,800.) #basis for ASP (Tents not splines)
+
+	basisKer = fun.CosineBasis(N_cos_bumps,len_cos_bumps,dt,a=2.2)[1:,:] #basis for kernels.
+	basisASP = fun.Tents(knots_ASP,bnds_ASP,600.) #basis for ASP (Tents not splines)
 	tol = 10**-6 #(Tol over gradient norm below which you stop optimizing)
 
 	def plot(self):
@@ -152,9 +158,7 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 		dv = (self.bnds[1] - self.bnds[0])*0.00001 
 		v = np.arange(self.bnds[0],self.bnds[1],dv)
 		v = np.atleast_2d(v)
-
 		para = fun.Ker2Param(v,self.basisNL)
-
 		self.paramNL = para
 
 		self.lls = []
@@ -164,7 +168,7 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 
 	def add_data(self,neuron): #import data from neuron
 
-		Nsteps = neuron.total_time/neuron.dt
+		Nsteps = neuron.total_time/self.dt
 		
 		self.input = neuron.input
 		self.output = [neuron.output]
@@ -191,7 +195,9 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 
 	def fit(self): #fit with block cooridinate ascend. not working yet.
 
-		self.paramNL,self.paramKer,self.lls = optim.BlockCoordinateAscent(self)
+		self.paramNL,self.paramKer,self.lls,b,bn = optim.BlockCoordinateAscent(self)
+		self.basisNL = b
+		self.bnds = bn
 
 	def test(self):
 
@@ -212,5 +218,30 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 
 	def plot(self): #under-developed plot method.
 
-		print self.likelihood
+		V = np.arange(self.bnds[0],self.bnds[1],(self.bnds[1]-self.bnds[0])*0.00001)
+		mostd = self.sub_membrane_potential.std()
+		Y = fun.sigmoid([0.,25.,1.,1./25.],((neuron.sub_memb_pot.std()/mostd)*V)/neuron.delta_v)
+		fig5 = plt.figure()
+		ax = fig5.add_subplot(111)
+		NL = np.dot(self.paramNL,self.basisNL)
+		ax.plot(V,Y-Y.mean()+NL.mean())
+		ax.plot(V,NL)
+		ax.set_xlabel("membrane potential ('mV')")
+		ax.set_ylabel("membrane potential, after non-linearity ('mV')") 
+		fig5.show()
+		fig6 = plt.figure()
+		axker = fig6.add_subplot(111)
+		Ker = np.zeros((neuron.N,self.len_cos_bumps),dtype='float')
+		Nb = self.basisKer.shape[0]
+		Ker[-1,:] = np.dot(self.paramKer[:Nb],self.basisKer)
+		std = neuron.sub_memb_pot.std()
+		axker.plot(Ker[-1,:])
+		axker.plot(neuron.PSP_size*neuron.synapses.ker[-1,::(self.dt/neuron.dt)]/std)
+		axker.set_xlabel("time (ms)")
+		axker.set_ylabel("PSP ('mV')")
+		fig6.show()
+		fig7 = plt.figure()
+		axlls = fig7.add_subplot(111)
+		axlls.plot(self.lls,'bo')
+		fig7.show()
 
