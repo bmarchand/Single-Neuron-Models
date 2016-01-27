@@ -21,10 +21,6 @@ def likelihood(state):
 	indices = indices.astype('int')
 
 	Nsteps = int(state.total_time/state.dt)
-
-	OST = np.zeros(Nsteps)
-
-	OST[indices] = 1.
 	
 	LL = np.sum(MP[indices]) - state.dt*np.sum(np.exp(MP)) 
 	#the +1 in convolve guarantees a high value of MP at spike time. 
@@ -37,10 +33,12 @@ def gradient_NL(state): #first of the gradient.
 
 	Ns = float(len(state.output[0]))
 	Nsteps = int(state.total_time/state.dt)
-	Nb = state.basisNL.shape[0] #number of basis functions.
+	Nb = state.basisNL[0].shape[0] #number of basis functions.
 	dt = state.dt
 
-	gr_NL = np.zeros((state.Ng*Nb,Nsteps),dtype='float')
+	dim = state.paramNL.size
+
+	gr_NL = np.zeros((dim,Nsteps),dtype='float')
 
 	MP = state.membrane_potential 
 	MP12 = state.sub_membrane_potential #contains membrane potential in group befo
@@ -48,12 +46,15 @@ def gradient_NL(state): #first of the gradient.
 	for g in range(state.Ng): #loop over compartments/groups
 
 		u = MP12[g,:] 
+			
+		Nbnl = state.basisNL[g].shape[0]
+		NL = np.dot(state.paramNL[g*Nbnl:(g+1)*Nbnl],state.basisNL[g]) # (1,100000)
 
 		for i in range(Nb-1): #for loop to create a stack of NB times MP12[g,:]
 
 			u = np.vstack((MP12[g,:],u))
 
-		gr_NL[g*Nb:(g+1)*Nb,:] = applyNL_2d(state.basisNL,u,state) #apply NL to stack.
+		gr_NL[g*Nb:(g+1)*Nb,:] = applyNL_2d(state.basisNL[g],u,state.bnds[g]) #apply NL to 
 
 	sptimes = np.floor(np.array(state.output[0])/state.dt) #conversion to timestep
 	sptimes = sptimes.astype('int') #has to be int to be an array of indices.
@@ -69,7 +70,7 @@ def hessian_NL(state):
 
 	Ns = float(len(state.output[0]))
 	Nsteps = int(state.total_time/state.dt) #Total number of time-steps.
-	Nb = state.basisNL.shape[0] #number of basis functions.
+	Nb = state.basisNL[0].shape[0] #number of basis functions.
 
 	he_NL = np.zeros((Nb*state.Ng,Nb*state.Ng),dtype='float') 
 
@@ -88,8 +89,8 @@ def hessian_NL(state):
 					ug = np.vstack((MP12[g,:],ug))
 					uh = np.vstack((MP12[h,:],uh))
 
-				ug = applyNL_2d(state.basisNL,ug,state) 
-				uh = applyNL_2d(state.basisNL,uh,state)
+				ug = applyNL_2d(state.basisNL[g],ug,state.bnds[g]) 
+				uh = applyNL_2d(state.basisNL[g],uh,state.bnds[g])
 
 				uht = uh.transpose()
 
@@ -103,11 +104,11 @@ def hessian_NL(state):
 
 	return (1./(math.log(2.)*Ns))*he_NL
 
-def applyNL(NL,u,state): #crucial piece of code to apply NL to membrane potential.
+def applyNL(NL,u,bnds): #crucial piece of code to apply NL to membrane potential.
 
-	dv = (state.bnds[1] - state.bnds[0])*0.00001 
+	dv = (bnds[1] - bnds[0])*0.00001 
 
-	u = (u-state.bnds[0])/dv
+	u = (u-bnds[0])/dv
 	u = np.floor(u)
 	u = u.astype('int') #indices need to be recentered. 0mV -> 50000 -> 0mV
 	
@@ -118,11 +119,11 @@ def applyNL(NL,u,state): #crucial piece of code to apply NL to membrane potentia
 
 	return u
 
-def applyNL_2d(NL,u,state): #same thing, but when dimensions are different.
+def applyNL_2d(NL,u,bnds): #same thing, but when dimensions are different.
 
-	dv = (state.bnds[1] - state.bnds[0])*0.00001
+	dv = (bnds[1] - bnds[0])*0.00001
 
-	u = (u-state.bnds[0])/dv
+	u = (u-bnds[0])/dv
 	u = np.floor(u)
 	u = u.astype('int') #need to recenter.
 
@@ -154,7 +155,7 @@ def gradient_ker(state):
 	Nsteps = int(state.total_time/state.dt) #total number of time steps.
 	Nneur  = int(state.N/state.Ng) # Number of presyn. neurons in a compartments.
 	N_ASP = state.basisASP.shape[0] # number of basis functions for ASP.
-	Nbnl = state.basisNL.shape[0] #number of basis functions for NL
+	Nbnl = state.basisNL[0].shape[0] #number of basis functions for NL
 	dt = state.dt
 	output = state.output
 
@@ -171,11 +172,11 @@ def gradient_ker(state):
 
 		X = cv(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
 
-		nlDer = np.dot(state.paramNL[g*Nbnl:(g+1)*Nbnl],state.basisNLder) 
+		nlDer = np.dot(state.paramNL[g*Nbnl:(g+1)*Nbnl],state.basisNLder[g]) 
 
 		#need derivative of non-linearity.
 
-		gr_ker[g*Nb*Nneur:(g+1)*Nb*Nneur,:] = X*applyNL(nlDer,MP12[g,:],state)
+		gr_ker[g*Nb*Nneur:(g+1)*Nb*Nneur,:] = X*applyNL(nlDer,MP12[g,:],state.bnds[g])
 
 	gr_ker[state.Ng*Nb*Nneur:-1,:] = - cv(output,state.basisASP,state)
 
@@ -195,7 +196,7 @@ def hessian_ker(state):
 	Nsteps = int(state.total_time/state.dt)
 	Nneur = int(state.N/state.Ng)
 	N_ASP = state.basisASP.shape[0]
-	Nbnl = state.basisNL.shape[0]
+	Nbnl = state.basisNL[0].shape[0]
 	Ng = state.Ng
 
 	Hess_ker = np.zeros((Ng*Nneur*Nb+N_ASP+1,Ng*Nneur*Nb+N_ASP+1),dtype='float')
@@ -209,15 +210,15 @@ def hessian_ker(state):
 	for g in range(state.Ng):
 
 		param = state.paramNL[g*Nbnl:(g+1)*Nbnl]
-		basisder = state.basisNLder
-		basissec = state.basisNLSecDer
+		basisder = state.basisNLder[g]
+		basissec = state.basisNLSecDer[g]
 		nlDer = np.dot(param,basisder)
 		nlSecDer = np.dot(param,basissec)
 
 		X1 = cv(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
 		
-		v = applyNL(nlDer,MP12[g,:],state)
-		u = applyNL(nlSecDer,MP12[g,:],state)
+		v = applyNL(nlDer,MP12[g,:],state.bnds[g])
+		u = applyNL(nlSecDer,MP12[g,:],state.bnds[g])
 
 		X3 = cv(output,state.basisASP,state)
 
@@ -254,8 +255,8 @@ def hessian_ker(state):
 				nlDer1 = np.dot(param1,basisder)
 				nlDer2 = np.dot(param2,basisder)
 
-				u = applyNL(nlDer1,MP12[g,:],state)
-				v = applyNL(nlDer2,MP12[h,:],state)
+				u = applyNL(nlDer1,MP12[g,:],state.bnds[g])
+				v = applyNL(nlDer2,MP12[h,:],state.bnds[h])
 
 				X1 = cv(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
 				X2 = cv(state.input[h*Nneur:(h+1)*Nneur],Basis,state)
@@ -317,7 +318,7 @@ def MembPot(state):
 
 	MP = np.zeros(Nsteps)
 	Nneurons = int(state.N/state.Ng) # number of neurons in compartment.
-	Nbnl = np.shape(state.basisNL)[0] # number of basis functions for NL.
+	Nbnl = np.shape(state.basisNL[0])[0] # number of basis functions for NL.
 
 	ParKer = state.paramKer
 
@@ -327,12 +328,12 @@ def MembPot(state):
 
 		Mp_g = MP12[g,:] 
 
-		F = state.basisNL 
+		F = state.basisNL[g] 
 		NL = np.dot(state.paramNL[g*Nbnl:(g+1)*Nbnl],F)
 
-		dv = (state.bnds[1] - state.bnds[0])*0.00001
+		dv = (state.bnds[g][1] - state.bnds[g][0])*0.00001
 
-		Mp_g = (Mp_g-state.bnds[0])/dv
+		Mp_g = (Mp_g-state.bnds[g][0])/dv
 		Mp_g = np.floor(Mp_g)
 		Mp_g = Mp_g.astype('int')
 

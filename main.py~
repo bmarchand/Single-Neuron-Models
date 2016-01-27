@@ -6,6 +6,7 @@ import random
 import math
 import optim
 import diff_calc as diff
+from matplotlib import gridspec
 
 class Synapses:
 
@@ -13,15 +14,16 @@ class Synapses:
 	td_in = 80. #[ms] decay time inhibitory kernel
 	tr_exc = 1. #[ms] rise ' ' ' excitatory ' ' ' 
 	td_exc = 30. #same
-	N = 12 #number of pre-synaptic neurons
+	N =  12#number of pre-synaptic neurons
 
-	def __init__(self,size,dt=0.025,len_ker=300.):
+	def __init__(self,size,dt=1.,len_ker=300.):
 
 		self.dt = dt # timestep [ms]
 		self.len_ker = len_ker #[ms] total-time over which the kernel is defined.
 		self.len_ker_st = int(len_ker/dt) #like above, but in ms.
 		self.ker = np.zeros((self.N,int(len_ker/dt)),dtype=float) #initialized at 0.
-		l = [0,1,2,6,7,8,3,4,5,9,10,11] #shuffle indices to create groups.
+		l = [6,7,8,0,1,2,3,4,5,9,10,11]		
+		#l = [12,13,14,15,16,17,18,19,20,21,22,23,0,1,2,3,4,5,6,7,8,9,10,11] #shuffle indices to create groups.
 		 
 		for i in range(self.N): #loop over the presynaptic neurons
 
@@ -49,17 +51,17 @@ class Synapses:
 
 class SpikingMechanism: #gather parameters for spiking.
 
-	dt = 0.025 #[ms]
+	dt = 1. #[ms]
 	strh = 25.
-	Ng = 1 #number of subgroups. each of them has a non-linearity.
-	non_linearity = [[0.,strh,1.,1/strh]]#,[-strh,2*strh,1.,1./strh]] 
-	threshold = 10. #bio-inspired threshold value.
+	Ng = 2 #number of subgroups. each of them has a non-linearity.
+	non_linearity = [[0.,strh,1.,1/strh],[0.,strh,1.,1/strh]]
+	threshold = 30. #bio-inspired threshold value.
 	PSP_size = 25.# mV: Roughly std of the memb. pot. in a compartment before NL 	  
 	ASP_size = 10. # [mV] size of After-Spike-Potential (ASP)
 	ASP_time = 200. #[ms] time-constant of decay ASP
 	ASP_total = 1000. #[ms] total length of ASP
 	ASP_total_st = ASP_total/dt #same but in time-steps unit.
-	delta_v = 2. #[mv]thresh. selectivity. In LNLN-model, will be one. rest will adapt.
+	delta_v = 1. #[mv]thresh. selectivity. In LNLN-model, will be one. rest will ada
 	lambda0 = 1. #[mV]firing value at threshold. 
 	in_rate = 25. #with these parameters, in_rate = 20 -> ~8Hz output
 
@@ -67,7 +69,7 @@ class RunParameters:
 
 	total_time = 600000. #total simulation time
 	total_time_test = 10000.
-	N = 12. #number of presynaptic neurons
+	N = 12 #number of presynaptic neurons
 	
 class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters): 
 # Neuron = synapses + spiking mechanisms + parameters.
@@ -79,7 +81,6 @@ class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters):
 	
 		self.input = [] #input will be a list of list of input spike times.
                         #one list per presynaptic neuron.
-
 		self.input_test = []
 
 		for i in range(self.N):
@@ -124,24 +125,38 @@ class FitParameters(): # FitParameters is one component of the TwoLayerModel cla
 
 		self.basis_str = basis
 
-	dt = 1. #[ms]
-	N = 12  # need to define it several times for access purposes.
-	Ng = 1 # number of nsub_groups
-	compartment = 1
+	dt = 4. #[ms]
+	N = 12 # need to define it several times for access purposes.
+	Ng = 2 # number of nsub_groups
+	compartment = 2
 	N_cos_bumps = 7 #number of PSP(ker) basis functions.
 	len_cos_bumps = 300. #ms. total length of the basis functions 
 	N_knots_ASP = 5.# number of knots for natural spline for ASP (unused)
-	N_knots = 10. # number of knots for NL (unused)
-	knots = range(-50,60,10) #knots for NL (unused)
-	bnds = [-100.,100.] #[mV] domain over which NL is defined
+
+	knots = []
+	bnds = []
+
+	for i in range(Ng):
+
+		knots = knots + [range(-50,60,10)]
+		bnds = bnds + [[-100.,100.]]
+
 	knots_ASP = range(int(100./dt),int(600./dt),int(100/dt) ) #knots for ASP (unused)
 	bnds_ASP = [0,600./dt] # domain over which ASP defined. [timesteps]
 
-	basisNL = fun.Tents(knots,bnds,100000.) #basis for NL (splines)
-	basisNLder = fun.DerTents(knots,bnds,100000.) #derivative of above.
-	basisNLSecDer = fun.SecDerTents(knots,bnds,100000.) #second derivative.
+	basisNL = []
+	basisNLder = []
+	basisNLSecDer = []
 
-	basisKer = fun.CosineBasis(N_cos_bumps,len_cos_bumps,dt,a=2.2)[1:,:] #basis for kernels.
+	for i in range(Ng):
+
+		basisNL = basisNL + [fun.Tents(knots[i],bnds[i],100000.)] #basis for NL 
+		basisNLder = basisNLder + [fun.DerTents(knots[i],bnds[i],100000.)] 
+		basisNLSecDer = basisNLSecDer + [fun.SecDerTents(knots[i],bnds[i],100000.)] 
+
+	knots_ker = [2./dt,5./dt,10./dt,20./dt,40./dt,100./dt,200./dt]
+	#basisKer = fun.NaturalSpline(knots_ker,[0.,len_cos_bumps/dt],len_cos_bumps/dt)[1:
+	basisKer = fun.CosineBasis(N_cos_bumps,len_cos_bumps,dt,a=2.0)
 	basisASP = fun.Tents(knots_ASP,bnds_ASP,600.) #basis for ASP (Tents not splines)
 	tol = 10**-6 #(Tol over gradient norm below which you stop optimizing)
 
@@ -155,15 +170,24 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 
 	def __init__(self): #initialized as a GLM (not working yet)
 
-		dv = (self.bnds[1] - self.bnds[0])*0.00001 
-		v = np.arange(self.bnds[0],self.bnds[1],dv)
-		v = np.atleast_2d(v)
-		para = fun.Ker2Param(v,self.basisNL)
-		self.paramNL = para
+		ps = []
+
+		self.paramNL = np.array([])
+
+		for i in range(self.Ng):
+
+			dv = (self.bnds[i][1] - self.bnds[i][0])*0.00001 
+			v = np.arange(self.bnds[i][0],self.bnds[i][1],dv)
+			v = np.atleast_2d(v)
+
+			self.paramNL = np.hstack((self.paramNL,fun.Ker2Param(v,self.basisNL[i])))
 
 		self.lls = []
+		self.switches = []
+		self.Mds = []
 		
 		Nb = self.basisKer.shape[0]     #just to make it shorter
+
 		self.paramKer = np.zeros(int(self.N*Nb+self.basisASP.shape[0]+1)) 
 
 	def add_data(self,neuron): #import data from neuron
@@ -174,6 +198,8 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 		self.output = [neuron.output]
 		self.paramKer[-1] = -math.log(len(neuron.output)/Nsteps) #initialize for fit.
 
+		self.neustd = neuron.sub_memb_pot.std()
+
 		self.sub_membrane_potential = diff.subMembPot(self,'training')
 		self.membrane_potential = diff.MembPot(self)
 
@@ -182,11 +208,14 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 
 	def normalize_basis(self):
 
-		for i in range(self.basisNL.shape[0]):
+		for g in range(Ng):
+			for i in range(self.basisNL.shape[0]):
 
-			self.basisNLder[i,:] = self.basisNLder[i,:]/np.sum(self.basisNL[i,:])
-			self.basisNLSecDer[i,:] = self.basisNLSecDer[i,:]/np.sum(self.basisNL[i,:])
-			self.basisNL[i,:] = self.basisNL[i,:]/np.sum(self.basisNL[i,:])
+				sm = np.sum(self.basisNL[g][i,:])
+
+				self.basisNLder[g][i,:] = self.basisNLder[g][i,:]/sm
+				self.basisNLSecDer[g][i,:] = self.basisNLSecDer[g][i,:]/sm
+				self.basisNL[g][i,:] = self.basisNL[g][i,:]/sm
 
 	def membpot(self):
 
@@ -195,9 +224,18 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 
 	def fit(self): #fit with block cooridinate ascend. not working yet.
 
-		self.paramNL,self.paramKer,self.lls,b,bn = optim.BlockCoordinateAscent(self)
-		self.basisNL = b
+		pNL,pKr,lls,b,bn,k,mds,sw = optim.BlockCoordinateAscent(self)
+
+		self.lls = lls
+		self.basisNL = b[0]
+		self.basisNLder = b[1]
+		self.basisNLSecDer = b[2]
 		self.bnds = bn
+		self.knots = k
+		self.Mds = mds
+		self.switches = sw
+		self.paramKer = pKr
+		self.paramNL = pNL
 
 	def test(self):
 
@@ -206,10 +244,10 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 		self.out_model_test = []
 		self.sub_memb_pot_test = diff.subMembPot(self,'test')
 
+		print "testing ..."
+
 		for i in range(100):
-
-			print i		
-
+	
 			self.out_model_test = self.out_model_test + [mech.run_model(self.input_test,self)]
 
 		self.delta_md = 4.
@@ -218,30 +256,71 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 
 	def plot(self): #under-developed plot method.
 
-		V = np.arange(self.bnds[0],self.bnds[1],(self.bnds[1]-self.bnds[0])*0.00001)
-		mostd = self.sub_membrane_potential.std()
-		Y = fun.sigmoid([0.,25.,1.,1./25.],((neuron.sub_memb_pot.std()/mostd)*V)/neuron.delta_v)
-		fig5 = plt.figure()
-		ax = fig5.add_subplot(111)
-		NL = np.dot(self.paramNL,self.basisNL)
-		ax.plot(V,Y-Y.mean()+NL.mean())
-		ax.plot(V,NL)
-		ax.set_xlabel("membrane potential ('mV')")
-		ax.set_ylabel("membrane potential, after non-linearity ('mV')") 
+		for g in range(self.Ng):
+
+			dv = (self.bnds[g][1]-self.bnds[g][0])*0.00001
+			V = np.arange(self.bnds[g][0],self.bnds[g][1],dv)
+			mostd = self.sub_membrane_potential[g,:].std()
+			neustd = neuron.sub_memb_pot.std()
+			Y = fun.sigmoid([0.,25.,1.,1./25.],((neustd/mostd)*V)/neuron.delta_v)
+
+			fig5 = plt.figure()
+
+			gs = gridspec.GridSpec(self.Ng,1)
+
+			Nbnl = self.basisNL[g].shape[0]
+			NL = np.dot(self.paramNL[g*Nbnl:(g+1)*Nbnl],self.basisNL[g])
+
+			ax = fig5.add_subplot(gs[g,0])
+
+			ax.plot(V,Y-Y.mean()+NL.mean())
+			ax.plot(V,NL)
+			ax.set_xlabel("membrane potential ('mV')")
+			ax.set_ylabel("membrane potential, after non-linearity ('mV')") 
+
 		fig5.show()
 		fig6 = plt.figure()
 		axker = fig6.add_subplot(111)
-		Ker = np.zeros((neuron.N,self.len_cos_bumps),dtype='float')
+		Ker = np.zeros((neuron.N,self.len_cos_bumps/self.dt),dtype='float')
 		Nb = self.basisKer.shape[0]
 		Ker[-1,:] = np.dot(self.paramKer[:Nb],self.basisKer)
+		Ker[0,:] = np.dot(self.paramKer[(self.N-1)*Nb:self.N*Nb],self.basisKer)
 		std = neuron.sub_memb_pot.std()
 		axker.plot(Ker[-1,:])
-		axker.plot(neuron.PSP_size*neuron.synapses.ker[-1,::(self.dt/neuron.dt)]/std)
+		axker.plot(Ker[0,:])
+		subsa = (self.dt/neuron.dt)
+		axker.plot(neuron.PSP_size*mostd*neuron.synapses.ker[-1,::subsa]/std)
+		axker.plot(neuron.PSP_size*mostd*neuron.synapses.ker[0,::subsa]/std)
 		axker.set_xlabel("time (ms)")
 		axker.set_ylabel("PSP ('mV')")
 		fig6.show()
 		fig7 = plt.figure()
-		axlls = fig7.add_subplot(111)
+		axlls = fig7.add_subplot(111) 
 		axlls.plot(self.lls,'bo')
 		fig7.show()
+
+		fig8 = plt.figure()
+		axmd = fig8.add_subplot(gs[0,0])
+		axmd.plot(self.Mds,'bo')
+		axmd.set_xlabel("Block Optimization number")
+		axmd.set_ylabel("Md - percentage of predicted spikes")
+		
+		axsw = fig8.add_subplot(gs[1,0])
+		axsw.plot(self.switches,'bo')
+		axsw.set_xlabel("Block Optimization number")
+		axsw.set_ylabel("Log-likelihood (bits/spike)")
+		fig8.show()
+
+	def save(self):
+
+		np.savetxt('paramnl.txt',self.paramNL)
+		np.savetxt('paramker.txt',self.paramKer)
+		np.savetxt('knots.txt',self.knots)
+		np.savetxt('bnds.txt',self.bnds)
+
+
+
+
+
+		
 

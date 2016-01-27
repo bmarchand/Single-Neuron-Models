@@ -217,8 +217,6 @@ def Tents(knots,bnds,total_length):#uses knots and bnds to keep same syntax as s
 
 		d = knots[i+1]-knots[i]
 
-		print "d: ", d
-
 		F[i,knots[i]:knots[i+1]] = np.arange(d,0,-1.)*(float(m)/d)
 
 	F[0,:knots[1]] = np.arange(knots[1],0,-1)
@@ -376,16 +374,16 @@ def SimMeas(out1,out2,model,delta):
 	axc.plot(conv1)
 	axc.plot(conv2)
 
-	figconv.show()
+	#figconv.show()
 
 	SP = np.sum(conv1_cvd*conv2)
 
 	N1 = np.sum(conv1_cvd*conv1)
 	N2 = np.sum(conv2_cvd*conv2)
 
-	print SP,N1,N2
-
 	Md = 2*SP/(N1+N2)
+
+	print Md
 
 	return Md
 

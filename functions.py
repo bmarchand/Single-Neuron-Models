@@ -364,26 +364,26 @@ def SimMeas(out1,out2,model,delta):
 
 	ker = np.ones((int(2*delta/model.dt)),dtype='float')
 
-	figconv = plt.figure()
+	#figconv = plt.figure()
 
-	axc = figconv.add_subplot(111)
+	#axc = figconv.add_subplot(111)
 
-	conv1_cvd = fftconvolve(conv1_cvd,ker)[:conv1.size]
-	conv2_cvd = fftconvolve(conv2_cvd,ker)[:conv2.size]
+	#conv1_cvd = fftconvolve(conv1_cvd,ker)[:conv1.size]
+	#conv2_cvd = fftconvolve(conv2_cvd,ker)[:conv2.size]
 
-	axc.plot(conv1)
-	axc.plot(conv2)
+	#axc.plot(conv1)
+	#axc.plot(conv2)
 
-	figconv.show()
+	#figconv.show()
 
 	SP = np.sum(conv1_cvd*conv2)
 
 	N1 = np.sum(conv1_cvd*conv1)
 	N2 = np.sum(conv2_cvd*conv2)
 
-	print SP,N1,N2
-
 	Md = 2*SP/(N1+N2)
+
+	print Md
 
 	return Md
 

@@ -111,7 +111,7 @@ def run_model(inp,model):
 		dv = (model.bnds[1] - model.bnds[0])*0.00001
 
 		Mp_g = (Mp_g-model.bnds[0])/dv
-		Mp_g = np.around(Mp_g)
+		Mp_g = np.floor(Mp_g)
 		Mp_g = Mp_g.astype('int')
 
 		Mp_g[Mp_g>99999] = 99999

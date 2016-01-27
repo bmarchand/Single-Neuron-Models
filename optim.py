@@ -17,6 +17,8 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 
 		self.input = Model.input
 		self.output = Model.output
+		self.input_test = Model.input_test
+		self.output_test = Model.output_test
 
 		self.gradient_ker = diff.gradient_ker(Model) 
 		self.gradient_NL = diff.gradient_NL(Model)
@@ -28,6 +30,9 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 		self.paramNL = Model.paramNL
 
 		self.lls = Model.lls
+		self.Mds = Model.Mds
+		self.switches = Model.switches
+		self.neustd = Model.neustd
 
 		self.likelihood = diff.likelihood(Model)
 
@@ -81,40 +86,47 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 
 	def renorm_basis(self):
 
-		NL = np.dot(self.paramNL,self.basisNL) # (1,100000)
+		new_params = np.array([])
 
-		sptimes = np.floor(np.array(self.output)/self.dt) 
-		sptimes = sptimes.astype('int')
+		old_b = copy.copy(self.basisNL)
 
-		mp_sp_min = self.sub_membrane_potential[:,sptimes].min() #smallest mp spike
-		mp_sp_max = self.sub_membrane_potential[:,sptimes].max() #highest mp spike
+		for g in range(self.Ng):
+			
+			Nbnl = old_b[g].shape[0]
 
-		print "min_memb_pot: ",mp_sp_min,mp_sp_max
+			NL = np.dot(self.paramNL[g*Nbnl:(g+1)*Nbnl],self.basisNL[g]) # (1,100000)
 
-		mu = self.sub_membrane_potential[:,sptimes].mean()
-		std = self.sub_membrane_potential[:,sptimes].std()
+			sptimes = np.floor(np.array(self.output)/self.dt) 
+			sptimes = sptimes.astype('int')
 
-		new_bnds = [mp_sp_min,mp_sp_max]
+			mp_sp_min = self.sub_membrane_potential[g,sptimes].min() #smallest mp spik
+			mp_sp_max = self.sub_membrane_potential[g,sptimes].max() #highest mp spike
 
-		dv = (new_bnds[1] - new_bnds[0])*0.00001 #
+			mu = self.sub_membrane_potential[g,sptimes].mean()
+			std = self.sub_membrane_potential[g,sptimes].std()
 
-		NL = diff.applyNL(NL,np.arange(new_bnds[0],new_bnds[1],dv),self) # need to have a vector with the values of the NL on the new axis, so that later, can get the parameters that correspond in the new basis.
+			new_bnds = [mp_sp_min,mp_sp_max]
 
-		self.bnds = new_bnds
+			dv = (new_bnds[1] - new_bnds[0])*0.00001 #
 
-		dok = (mp_sp_max - mp_sp_min)*0.05
+			NL = diff.applyNL(NL,np.arange(new_bnds[0],new_bnds[1],dv),self.bnds[g]) #
+			self.bnds[g] = new_bnds
 
-		self.knots = [kn for kn in np.arange(mp_sp_min+dok,mp_sp_max-dok,dok)]
+			self.knots[g] = [mp_sp_min+((i+1)/15.)*mp_sp_max for i in range(14)]
 
-		self.basisNL = fun.Tents(self.knots,self.bnds,100000.)
-		self.basisNLder = fun.DerTents(self.knots,self.bnds,100000.)
-		self.basisNLSecDer = fun.SecDerTents(self.knots,self.bnds,100000.)
+			tots = 100000.
 
-		dv = (self.bnds[1] - self.bnds[0])*0.00001 
-		v = np.arange(self.bnds[0],self.bnds[1],dv)
-		NL = np.atleast_2d(NL)
-		para = fun.Ker2Param(NL,self.basisNL)
-		self.paramNL = para		
+			self.basisNL[g] = fun.Tents(self.knots[g],self.bnds[g],tots)
+			self.basisNLder[g] = fun.DerTents(self.knots[g],self.bnds[g],tots)
+			self.basisNLSecDer[g] = fun.SecDerTents(self.knots[g],self.bnds[g],tots)
+
+			dv = (self.bnds[g][1] - self.bnds[g][0])*0.00001 
+			v = np.arange(self.bnds[g][0],self.bnds[g][1],dv)
+			NL = np.atleast_2d(NL)
+			para = fun.Ker2Param(NL,self.basisNL[g])
+			new_params = np.hstack((new_params,para))	
+
+		self.paramNL = new_params	
 	
 def BlockCoordinateAscent(Model):
 
@@ -123,6 +135,7 @@ def BlockCoordinateAscent(Model):
 
 	init_fun()
 	
+
 	while cnt > 5.:
 
 		init_tot()
@@ -133,7 +146,7 @@ def BlockCoordinateAscent(Model):
 			state.iter_ker()
 			state.update()
 
-			finish_ker(1000.)
+			finish_ker(3000.)
 			
 		prepare_nl()
 
@@ -142,9 +155,13 @@ def BlockCoordinateAscent(Model):
 			init_nl()		
 			state.iter_NL()
 			state.update()
-			finish_nl(1000000.)
+			finish_nl(10000000.)
+
+	b = [state.basisNL,state.basisNLder,state.basisNLSecDer]
+	sw = state.switches
+	mds = state.Mds
 			
-	return state.paramNL,state.paramKer,state.lls,state.basisNL,state.bnds
+	return state.paramNL,state.paramKer,state.lls,b,state.bnds,state.knots,mds,sw
 
 #Below: Superficial layer of code for plotting, counting iterations and such.
 
@@ -163,6 +180,7 @@ def init_fun():
 	fig2 = plt.figure()
 	fig2.show()
 	ax5 = fig2.add_subplot(gs[0,0])
+	ax6 = fig2.add_subplot(gs[1,0])
 	plt.ion()	
 	cnt = 40. #just need to be greater than 3.
 
@@ -176,6 +194,9 @@ def init_tot():
 	diff_nl = 100.
 
 	cnt = 0.
+	state.switches = state.switches + [state.likelihood]
+	state.test()
+	state.Mds = state.Mds + [state.Md]
 
 def init_ker():
 
@@ -215,18 +236,31 @@ def prepare_nl():
 
 	state.renorm_basis()
 	state.update()
+	state.switches = state.switches + [state.likelihood]
+	state.test()
+	state.Mds = state.Mds + [state.Md]
 
 	globals().update(locals())
 
 def init_nl():
 
-	std = state.sub_membrane_potential.std()
-	dv = (state.bnds[1]-state.bnds[0])*0.00001
-	V = np.arange(state.bnds[0],state.bnds[1],dv)			
-	NL = np.dot(state.paramNL,state.basisNL)
-	Y = fun.sigmoid([0.,25.,1.,1./25.],(36./std)*V)/2.
-	ax5.plot(V,Y)
-	ax5.plot(V,NL)
+	for g in range(state.Ng):
+			
+		Nbnl = state.basisNL[g].shape[0]
+		NL = np.dot(state.paramNL[Nbnl*g:(g+1)*Nbnl],state.basisNL[g]) # (1,100000)
+
+		std = state.sub_membrane_potential[g,:].std()
+		dv = (state.bnds[g][1]-state.bnds[g][0])*0.00001
+		V = np.arange(state.bnds[g][0],state.bnds[g][1],dv)			
+		NL = np.dot(state.paramNL[g*Nbnl:(g+1)*Nbnl],state.basisNL[g])
+		Y = fun.sigmoid([0.,25.,1.,1./25.],(state.neustd/std)*V)/2.
+		
+		if g==0:
+			ax5.plot(V,Y)
+			ax5.plot(V,NL)
+		elif g==1:
+			ax6.plot(V,Y)
+			ax6.plot(V,NL)
 
 	fig2.canvas.draw()
 	ax4.plot(state.membrane_potential[:3000])

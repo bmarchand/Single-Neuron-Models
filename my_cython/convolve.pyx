@@ -21,7 +21,7 @@ def convolve_cython_wrapper(spike_train, basis, state):
 
     for l in range(len(spike_train)):
         convolve_cython(
-            (np.array(spike_train[l], dtype=TYPE_FLOAT)/state.dt).astype(TYPE_INT),
+            (np.floor(spike_train[l], dtype=TYPE_FLOAT)/state.dt).astype(TYPE_INT),
             X,
             basis,
             Nsteps,

@@ -97,7 +97,7 @@ def run_model(inp,model):
 
 	MP = np.zeros(Nsteps)
 	Nneurons = int(model.N/model.Ng) # number of neurons in compartment.
-	Nbnl = np.shape(model.basisNL)[0] # number of basis functions for NL.
+	Nbnl = np.shape(model.basisNL[0])[0] # number of basis functions for NL.
 
 	MP12 = model.sub_memb_pot_test
 
@@ -105,12 +105,12 @@ def run_model(inp,model):
 
 		Mp_g = MP12[g,:] 
 
-		F = model.basisNL 
+		F = model.basisNL[g]
 		NL = np.dot(model.paramNL[g*Nbnl:(g+1)*Nbnl],F)
 
-		dv = (model.bnds[1] - model.bnds[0])*0.00001
+		dv = (model.bnds[g][1] - model.bnds[g][0])*0.00001
 
-		Mp_g = (Mp_g-model.bnds[0])/dv
+		Mp_g = (Mp_g-model.bnds[g][0])/dv
 		Mp_g = np.floor(Mp_g)
 		Mp_g = Mp_g.astype('int')
 

@@ -20,6 +20,8 @@ model.plot()
 
 model.test()
 
+model.save()
+
 print "Md: ",model.Md
 	
 
