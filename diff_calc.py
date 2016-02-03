@@ -90,7 +90,7 @@ def hessian_NL(state):
 					uh = np.vstack((MP12[h,:],uh))
 
 				ug = applyNL_2d(state.basisNL[g],ug,state.bnds[g]) 
-				uh = applyNL_2d(state.basisNL[g],uh,state.bnds[g])
+				uh = applyNL_2d(state.basisNL[h],uh,state.bnds[h])
 
 				uht = uh.transpose()
 
@@ -153,13 +153,14 @@ def gradient_ker(state):
 	Ns = float(len(state.output[0]))
 	Nb = state.basisKer.shape[0]  #number of basis functions for kernels/PSP.
 	Nsteps = int(state.total_time/state.dt) #total number of time steps.
-	Nneur  = int(state.N/state.Ng) # Number of presyn. neurons in a compartments.
+	Nneur  = state.Nneur # Number of presyn. neurons in a compartments.
 	N_ASP = state.basisASP.shape[0] # number of basis functions for ASP.
 	Nbnl = state.basisNL[0].shape[0] #number of basis functions for NL
 	dt = state.dt
+	N = state.N
 	output = state.output
 
-	gr_ker = np.zeros((state.Ng*Nb*Nneur+N_ASP+1,Nsteps),dtype='float')
+	gr_ker = np.zeros((N*Nb+N_ASP+1,Nsteps),dtype='float')
 	#PSP kernels + ASP + threshold.
 
 	MP12 = state.sub_membrane_potential #before NL
@@ -170,15 +171,18 @@ def gradient_ker(state):
 
 		Basis = state.basisKer 
 
-		X = cv(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
+		ming = Nneur[g][0]
+		maxg = Nneur[g][-1]
+
+		X = cv(state.input[ming:maxg],Basis,state)
 
 		nlDer = np.dot(state.paramNL[g*Nbnl:(g+1)*Nbnl],state.basisNLder[g]) 
 
 		#need derivative of non-linearity.
 
-		gr_ker[g*Nb*Nneur:(g+1)*Nb*Nneur,:] = X*applyNL(nlDer,MP12[g,:],state.bnds[g])
+		gr_ker[ming*Nb:maxg*Nb,:] = X*applyNL(nlDer,MP12[g,:],state.bnds[g])
 
-	gr_ker[state.Ng*Nb*Nneur:-1,:] = - cv(output,state.basisASP,state)
+	gr_ker[state.N*Nb:-1,:] = - cv(output,state.basisASP,state)
 
 	sptimes = np.floor(np.array(state.output[0])/dt) #no +1 or -1 here. it is in 									#cv(-), and MembPot(-)
 	sptimes = sptimes.astype('int')
@@ -194,12 +198,13 @@ def hessian_ker(state):
 	Ns = float(len(state.output[0]))
 	Nb = state.basisKer.shape[0]
 	Nsteps = int(state.total_time/state.dt)
-	Nneur = int(state.N/state.Ng)
+	Nneur = state.Nneur
 	N_ASP = state.basisASP.shape[0]
 	Nbnl = state.basisNL[0].shape[0]
 	Ng = state.Ng
+	N = state.N
 
-	Hess_ker = np.zeros((Ng*Nneur*Nb+N_ASP+1,Ng*Nneur*Nb+N_ASP+1),dtype='float')
+	Hess_ker = np.zeros((N*Nb+N_ASP+1,N*Nb+N_ASP+1),dtype='float')
 
 	MP12 = state.sub_membrane_potential
 	MP = state.membrane_potential
@@ -215,7 +220,7 @@ def hessian_ker(state):
 		nlDer = np.dot(param,basisder)
 		nlSecDer = np.dot(param,basissec)
 
-		X1 = cv(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
+		X1 = cv(state.input[Nneur[g][0]:Nneur[g][-1]],Basis,state)
 		
 		v = applyNL(nlDer,MP12[g,:],state.bnds[g])
 		u = applyNL(nlSecDer,MP12[g,:],state.bnds[g])
@@ -239,11 +244,14 @@ def hessian_ker(state):
 
 		Halpha = Hspik - Hnosp
 
-		Hess_ker[g*Nneur*Nb:(g+1)*Nneur*Nb,-1] = Halthet
+		ming = Nneur[g][0]*Nb
+		maxg = Nneur[g][-1]*Nb
 
-		Hess_ker[g*Nneur*Nb:(g+1)*Nneur*Nb,g*Nneur*Nb:(g+1)*Nneur*Nb] = Halpha
+		Hess_ker[ming:maxg,-1] = Halthet
 
-		Hess_ker[g*Nneur*Nb:(g+1)*Nneur*Nb,Ng*Nneur*Nb:(Ng*Nneur*Nb+N_ASP)] = Halgam
+		Hess_ker[ming:maxg,ming:maxg] = Halpha
+
+		Hess_ker[ming:maxg,N*Nb:(N*Nb+N_ASP)] = Halgam
 
 		for h in range(state.Ng):
 
@@ -258,12 +266,12 @@ def hessian_ker(state):
 				u = applyNL(nlDer1,MP12[g,:],state.bnds[g])
 				v = applyNL(nlDer2,MP12[h,:],state.bnds[h])
 
-				X1 = cv(state.input[g*Nneur:(g+1)*Nneur],Basis,state)
-				X2 = cv(state.input[h*Nneur:(h+1)*Nneur],Basis,state)
+				X1 = cv(state.input[Nneur[g][0]:Nneur[g][-1]],Basis,state)
+				X2 = cv(state.input[Nneur[h][0]:Nneur[h][-1]],Basis,state)
 
 				Halbet = - state.dt*np.dot(X1*u*v*lamb,X2.transpose())
 
-				Hess_ker[g*Nneur*Nb:(g+1)*Nneur*Nb,h*Nneur*Nb:(h+1)*Nneur*Nb] = Halbet
+				Hess_ker[Nneur[g][0]*Nb:Nneur[g][-1]*Nb,Nneur[h][0]*Nb:Nneur[h][-1]*Nb] = Halbet
 
 	Hess_ker[-1,-1] = -state.dt*np.sum(np.exp(MP))
 
@@ -271,9 +279,9 @@ def hessian_ker(state):
 
 	Hgam = -state.dt*np.dot(X3*lamb,X3.transpose())
 
-	Hess_ker[Ng*Nneur*Nb:(Ng*Nneur*Nb+N_ASP),-1] = Hgamthet
+	Hess_ker[N*Nb:(N*Nb+N_ASP),-1] = Hgamthet
 
-	Hess_ker[Ng*Nneur*Nb:(Ng*Nneur*Nb+N_ASP),Ng*Nneur*Nb:(Ng*Nneur*Nb+N_ASP)] = Hgam
+	Hess_ker[N*Nb:(N*Nb+N_ASP),N*Nb:(N*Nb+N_ASP)] = Hgam
 
 	Hess_ker = 0.5*(Hess_ker.transpose() + Hess_ker)	
 
@@ -291,7 +299,7 @@ def subMembPot(state,string): #membrane potential before NL.
 
 	MP12 = np.zeros((state.Ng,Nsteps),dtype='float')
 
-	Nneur = int(state.N/state.Ng) #number of neurons in compartment.
+	Nneur = state.Nneur #number of neurons in compartment.
 	Nb = state.basisKer.shape[0] #number of basis function for kernels.
 
 	for g in range(state.Ng):
@@ -300,15 +308,18 @@ def subMembPot(state,string): #membrane potential before NL.
 
 		if string=='training':
 
-			inp = state.input[g*Nneur:(g+1)*Nneur]
+			inp = state.input[Nneur[g][0]:Nneur[g][-1]]
 
 		elif string=='test':
 
-			inp = state.input_test[g*Nneur:(g+1)*Nneur]
+			inp = state.input_test[Nneur[g][0]:Nneur[g][-1]]
 
 		X = cv(inp,Basis,state)[:,:Nsteps] #+1 in there.
 
-		MP12[g,:] = np.dot(state.paramKer[g*Nneur*Nb:(g+1)*Nneur*Nb],X)
+		ming = Nneur[g][0]
+		maxg = Nneur[g][-1]
+
+		MP12[g,:] = np.dot(state.paramKer[ming*Nb:maxg*Nb],X)
 
 	return MP12
 

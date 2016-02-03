@@ -334,7 +334,7 @@ def SimMeas(out1,out2,model,delta):
 	for i in range(100):
 
 		outt1 = out1[i]
-		outt2 = out2[i]
+		outt2 = out2[0]
 
 		outt1 = np.array(outt1)
 		outt1 = np.floor(outt1/model.dt)
@@ -364,17 +364,17 @@ def SimMeas(out1,out2,model,delta):
 
 	ker = np.ones((int(2*delta/model.dt)),dtype='float')
 
-	#figconv = plt.figure()
+	figconv = plt.figure()
 
-	#axc = figconv.add_subplot(111)
+	axc = figconv.add_subplot(111)
 
-	#conv1_cvd = fftconvolve(conv1_cvd,ker)[:conv1.size]
-	#conv2_cvd = fftconvolve(conv2_cvd,ker)[:conv2.size]
+	conv1_cvd = fftconvolve(conv1_cvd,ker)[:conv1.size]
+	conv2_cvd = fftconvolve(conv2_cvd,ker)[:conv2.size]
 
-	#axc.plot(conv1)
-	#axc.plot(conv2)
+	axc.plot(conv1)
+	axc.plot(conv2)
 
-	#figconv.show()
+	figconv.show()
 
 	SP = np.sum(conv1_cvd*conv2)
 

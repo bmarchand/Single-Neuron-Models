@@ -32,7 +32,7 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 		self.lls = Model.lls
 		self.Mds = Model.Mds
 		self.switches = Model.switches
-		self.neustd = Model.neustd
+		#self.neustd = Model.neustd
 
 		self.likelihood = diff.likelihood(Model)
 
@@ -102,9 +102,6 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 			mp_sp_min = self.sub_membrane_potential[g,sptimes].min() #smallest mp spik
 			mp_sp_max = self.sub_membrane_potential[g,sptimes].max() #highest mp spike
 
-			mu = self.sub_membrane_potential[g,sptimes].mean()
-			std = self.sub_membrane_potential[g,sptimes].std()
-
 			new_bnds = [mp_sp_min,mp_sp_max]
 
 			dv = (new_bnds[1] - new_bnds[0])*0.00001 #
@@ -112,7 +109,7 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 			NL = diff.applyNL(NL,np.arange(new_bnds[0],new_bnds[1],dv),self.bnds[g]) #
 			self.bnds[g] = new_bnds
 
-			self.knots[g] = [mp_sp_min+((i+1)/15.)*mp_sp_max for i in range(14)]
+			self.knots[g] = [mp_sp_min+((i+1)/5.)*(mp_sp_max-mp_sp_min) for i in range(4)]
 
 			tots = 100000.
 
@@ -135,18 +132,17 @@ def BlockCoordinateAscent(Model):
 
 	init_fun()
 	
-
 	while cnt > 5.:
 
 		init_tot()
 		
-		while diff_ker > 3.:
+		while diff_ker > 15.:
 
 			init_ker()
 			state.iter_ker()
 			state.update()
 
-			finish_ker(2000.)
+			finish_ker(1000.)
 			
 		prepare_nl()
 
@@ -155,7 +151,7 @@ def BlockCoordinateAscent(Model):
 			init_nl()		
 			state.iter_NL()
 			state.update()
-			finish_nl(10000000.)
+			finish_nl(100000.)
 
 	b = [state.basisNL,state.basisNLder,state.basisNLSecDer]
 	sw = state.switches
@@ -244,25 +240,6 @@ def prepare_nl():
 
 def init_nl():
 
-	for g in range(state.Ng):
-			
-		Nbnl = state.basisNL[g].shape[0]
-		NL = np.dot(state.paramNL[Nbnl*g:(g+1)*Nbnl],state.basisNL[g]) # (1,100000)
-
-		std = state.sub_membrane_potential[g,:].std()
-		dv = (state.bnds[g][1]-state.bnds[g][0])*0.00001
-		V = np.arange(state.bnds[g][0],state.bnds[g][1],dv)			
-		NL = np.dot(state.paramNL[g*Nbnl:(g+1)*Nbnl],state.basisNL[g])
-		Y = fun.sigmoid([0.,25.,1.,1./25.],(state.neustd/std)*V)/2.
-		
-		if g==0:
-			ax5.plot(V,Y)
-			ax5.plot(V,NL)
-		elif g==1:
-			ax6.plot(V,Y)
-			ax6.plot(V,NL)
-
-	fig2.canvas.draw()
 	ax4.plot(state.membrane_potential[:3000])
 	fig1.canvas.draw()
 
@@ -274,6 +251,27 @@ def init_nl():
 	globals().update(locals())
 
 def finish_nl(tol_fact):
+
+	for g in range(state.Ng):
+			
+		Nbnl = state.basisNL[g].shape[0]
+		NL = np.dot(state.paramNL[Nbnl*g:(g+1)*Nbnl],state.basisNL[g]) # (1,100000)
+
+		std = state.sub_membrane_potential[g,:].std()
+		dv = (state.bnds[g][1]-state.bnds[g][0])*0.00001
+		V = np.arange(state.bnds[g][0],state.bnds[g][1],dv)			
+		NL = np.dot(state.paramNL[g*Nbnl:(g+1)*Nbnl],state.basisNL[g])
+		#Y = fun.sigmoid([0.,25.,1.,1./25.],(state.neustd/std)*V)/2.
+	
+		
+		if g==0:
+			#ax5.plot(V,Y)
+			ax5.plot(V,NL)
+		elif g==1:
+			#ax6.plot(V,Y)
+			ax6.plot(V,NL)
+
+	fig2.canvas.draw()
 
 	global diff_nl
 	diff_nl = abs(np.floor((state.likelihood - l0)*tol_fact))
