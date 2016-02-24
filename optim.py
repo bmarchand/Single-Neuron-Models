@@ -132,7 +132,7 @@ def BlockCoordinateAscent(Model):
 
 	init_fun()
 	
-	while cnt > 5.:
+	while cnt > 4.:
 
 		init_tot()
 		
@@ -143,20 +143,24 @@ def BlockCoordinateAscent(Model):
 				state.iter_ker()
 				state.update()
 
-				finish_ker(1000.)
+				finish_ker(10000.)
 	
 		except KeyboardInterrupt:
 			pass			
 
 		prepare_nl()
 
-		while diff_nl > 2.:
+		try:
+			while diff_nl > 2.:
 
-			init_nl()		
-			state.iter_NL()
-			state.update()
-			finish_nl(100000.)
-
+				init_nl()		
+				state.iter_NL()
+				state.update()
+				finish_nl(100000.)
+	
+		except KeyboardInterrupt:
+			pass
+		
 	b = [state.basisNL,state.basisNLder,state.basisNLSecDer]
 	sw = state.switches
 	mds = state.Mds
@@ -176,11 +180,12 @@ def init_fun():
 	fig1.show()
 	plt.draw()
 	plt.ion()
-	gs = gridspec.GridSpec(2,1)
+	gs = gridspec.GridSpec(3,1)
 	fig2 = plt.figure()
 	fig2.show()
 	ax5 = fig2.add_subplot(gs[0,0])
 	ax6 = fig2.add_subplot(gs[1,0])
+	ax62 = fig2.add_subplot(gs[2,0])
 	plt.ion()	
 	cnt = 40. #just need to be greater than 3.
 
@@ -274,6 +279,8 @@ def finish_nl(tol_fact):
 		elif g==1:
 			#ax6.plot(V,Y)
 			ax6.plot(V,NL)
+		elif g==2:
+			ax62.plot(V,NL)
 
 	fig2.canvas.draw()
 

@@ -1,3 +1,4 @@
+from __future__ import division
 import functions as fun
 import numpy as np
 import matplotlib.pylab as plt
@@ -8,6 +9,9 @@ import optim
 import diff_calc as diff
 from matplotlib import gridspec
 import interface
+import pickle
+
+dataset = pickle.load(open("dataset2.p","rb"))
 
 class Synapses:
 
@@ -68,9 +72,9 @@ class SpikingMechanism: #gather parameters for spiking.
 
 class RunParameters:
 
-	total_time = 600000. #total simulation time
-	total_time_test = 10000.
-	N = 10 #number of presynaptic neurons
+	total_time = dataset["total_time"] #total simulation time
+	total_time_test = dataset["total_time_test"]
+	N = dataset["N"] #number of presynaptic neurons
 	
 class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters): 
 # Neuron = synapses + spiking mechanisms + parameters.
@@ -124,24 +128,33 @@ class BBPneuron(RunParameters):
 
 	def __init__(self):
 
-		path = '/home/bmarchan/L5_TTPC2_cADpyr232_4/L5_TTPC2_cADpyr232_4/Dataset12/'
+		path = dataset["path"]
 
-		strs = ['dend','dend']
+		strs = dataset["strs"]
 
-		grps = [range(5),range(5,10)]
+		grps = dataset["grps"]
 
-		inp,inp_test,out,outtest = interface.import_data([0,2],path,strs,grps)
+		inp_test,inp,outtest,out = interface.import_data([0,1],path,strs,grps)
 
 		outtest = np.array(outtest)
+
 		outtest = outtest[outtest<self.total_time_test]
+
+		out = np.array(out)
+
+		out = out[out<self.total_time]
 
 		for i in range(len(inp_test)):
 
 			inter = np.array(inp_test[i])
 			inp_test[i] = list(inter[inter<self.total_time_test])
 
+			inp_tmp = np.array(inp[i])
+
+			inp[i] = list(inp_tmp[inp_tmp<self.total_time])
+
 		self.output_test = [list(outtest)]
-		self.output = out
+		self.output = list(out)
 		self.input = inp
 		self.input_test = inp_test
 
@@ -152,11 +165,11 @@ class FitParameters(): # FitParameters is one component of the TwoLayerModel cla
 
 		self.basis_str = basis
 
-	dt = 1. #[ms]
-	N = 10# need to define it several times for access purposes.
-	Ng = 2 # number of nsub_groups
-	Nneur = [range(0,6),range(5,11)]
-	N_cos_bumps = 7 #number of PSP(ker) basis functions.
+	dt = 1.  #[ms]
+	N = dataset["N"]# need to define it several times for access purposes.
+	Ng = dataset["Ng"] # number of nsub_groups
+	Nneur = dataset["Nneur"]
+	N_cos_bumps = 5 #number of PSP(ker) basis functions.
 	len_cos_bumps = 300. #ms. total length of the basis functions 
 	N_knots_ASP = 5.# number of knots for natural spline for ASP (unused)
 
@@ -175,16 +188,28 @@ class FitParameters(): # FitParameters is one component of the TwoLayerModel cla
 	basisNLder = []
 	basisNLSecDer = []
 
+	knots_back_prop = [10./dt,30./dt,70./dt,150./dt]
+
+	#basisBackProp = fun.Cst(knots_back_prop,[0,len_cos_bumps/dt],len_cos_bumps/dt)
+
+	flag = ['nope','nope']
+
 	for i in range(Ng):
 
 		basisNL = basisNL + [fun.Tents(knots[i],bnds[i],100000.)] #basis for NL 
 		basisNLder = basisNLder + [fun.DerTents(knots[i],bnds[i],100000.)] 
 		basisNLSecDer = basisNLSecDer + [fun.SecDerTents(knots[i],bnds[i],100000.)] 
 
-	knots_ker = [1./dt,5./dt,10./dt,20./dt,40./dt,60./dt,150./dt]
+	knots_ker = [2./dt,5./dt,10./dt,20./dt,30./dt,80./dt,100./dt]
+
+	for i in range(len(knots_ker)):
+
+		knots_ker[i] = len_cos_bumps - knots_ker[i]
+
 	#basisKer = fun.NaturalSpline(knots_ker,[0.,len_cos_bumps/dt],len_cos_bumps/dt)
-	#basisKer = basisKer[1:,:]
-	basisKer = fun.CosineBasis(N_cos_bumps,len_cos_bumps,dt,a=2.0)
+	#basisKer = basisKer[1:,::-1]
+	basisKer = fun.CosineBasis(N_cos_bumps,len_cos_bumps,dt,a=1.7)
+	basisKer = basisKer[1:,:]
 	basisASP = fun.Tents(knots_ASP,bnds_ASP,600.) #basis for ASP (Tents not splines)
 	tol = 10**-6 #(Tol over gradient norm below which you stop optimizing)
 
@@ -215,6 +240,7 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 		self.Mds = []
 		
 		Nb = self.basisKer.shape[0]     #just to make it shorter
+		#Nbbp = self.basisBackProp.shape[0]
 
 		self.paramKer = np.zeros(int(self.N*Nb+self.basisASP.shape[0]+1)) 
 
@@ -224,7 +250,8 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 		
 		self.input = neuron.input
 		self.output = [neuron.output]
-		self.paramKer[-1] = -math.log(len(neuron.output)/Nsteps) #initialize for fit.
+
+		self.paramKer[-1] = -math.log(len(neuron.output)/neuron.total_time) #initialize for fit.
 
 		#self.neustd = neuron.sub_memb_pot.std()
 
@@ -311,12 +338,17 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 		axker = fig6.add_subplot(111)
 		Ker = np.zeros((self.N,self.len_cos_bumps/self.dt),dtype='float')
 		Nb = self.basisKer.shape[0]
-		Ker[-1,:] = np.dot(self.paramKer[:Nb],self.basisKer)
-		Ker[0,:] = np.dot(self.paramKer[(self.N-1)*Nb:self.N*Nb],self.basisKer)
+
+		for i in range(self.N):
+
+			Ker[i,:] = np.dot(self.paramKer[i*Nb:(i+1)*Nb],self.basisKer)
+	
 		#std = neuron.sub_memb_pot.std()
-		axker.plot(Ker[-1,:])
-		axker.plot(Ker[0,:])
-		subsa = 1#(self.dt/neuron.dt)
+
+		for i in range(self.N):
+
+			axker.plot(Ker[i,:],color='b')
+
 		#axker.plot(neuron.PSP_size*mostd*neuron.synapses.ker[-1,::subsa])
 		#axker.plot(neuron.PSP_size*mostd*neuron.synapses.ker[0,::subsa])
 		axker.set_xlabel("time (ms)")
@@ -325,17 +357,38 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 		fig7 = plt.figure()
 		axlls = fig7.add_subplot(111) 
 		axlls.plot(self.lls,'bo')
+		axlls.set_xlabel('iteration number')
+		axlls.set_ylabel('log-likelihood (bits/spikes)')
 		fig7.show()
 
 		fig8 = plt.figure()
 		axmd = fig8.add_subplot(gs[0,0])
-		axmd.plot(self.Mds,'bo')
-		axmd.set_xlabel("Block Optimization number")
-		axmd.set_ylabel("Md - percentage of predicted spikes")
+
+		ticks = ['Poiss.','PSP (GLM)']
+
+		for i in range(len(self.Mds)-2):
+
+			if i%2==0:
+
+				ticks = ticks + ['NL']
+
+			else:
+
+				ticks = ticks + ['PSP']
+
+		axmd.bar(np.arange(len(self.Mds)),self.Mds,width=0.5)
+
+		axmd.set_xticks(np.arange(len(self.Mds))+0.25)
+		axmd.set_xticklabels(ticks)
+
+		axmd.set_ylabel("Md - percentage of predicted spikes on test set.")
 		
 		axsw = fig8.add_subplot(gs[1,0])
-		axsw.plot(self.switches,'bo')
-		axsw.set_xlabel("Block Optimization number")
+		axsw.bar(np.arange(len(self.switches)),self.switches,width=0.5)
+
+		axmd.set_xticks(np.arange(len(self.Mds)))
+		axmd.set_xticklabels(ticks)
+
 		axsw.set_ylabel("Log-likelihood (bits/spike)")
 		fig8.show()
 
@@ -345,4 +398,5 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 		np.savetxt('paramker.txt',self.paramKer)
 		np.savetxt('knots.txt',self.knots)
 		np.savetxt('bnds.txt',self.bnds)
+
 

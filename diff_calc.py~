@@ -22,7 +22,7 @@ def likelihood(state):
 
 	Nsteps = int(state.total_time/state.dt)
 	
-	LL = np.sum(MP[indices]) - state.dt*np.sum(np.exp(MP)) 
+	LL = np.sum(MP[indices])-state.dt*(np.sum(np.exp(MP))-np.sum(np.exp(MP[sptimes])))
 	#the +1 in convolve guarantees a high value of MP at spike time. 
 
 	LL = (1./(math.log(2.)*Ns))*(LL - Ns*(math.log(Ns/Nsteps) -1. ) )
@@ -90,7 +90,7 @@ def hessian_NL(state):
 					uh = np.vstack((MP12[h,:],uh))
 
 				ug = applyNL_2d(state.basisNL[g],ug,state.bnds[g]) 
-				uh = applyNL_2d(state.basisNL[g],uh,state.bnds[g])
+				uh = applyNL_2d(state.basisNL[h],uh,state.bnds[h])
 
 				uht = uh.transpose()
 
@@ -301,25 +301,53 @@ def subMembPot(state,string): #membrane potential before NL.
 
 	Nneur = state.Nneur #number of neurons in compartment.
 	Nb = state.basisKer.shape[0] #number of basis function for kernels.
+	#Nbbp = state.basisBackProp.shape[0]
 
 	for g in range(state.Ng):
 
 		Basis = state.basisKer
 
-		if string=='training':
+		if state.flag[g]=='backprop':
 
-			inp = state.input[Nneur[g][0]:Nneur[g][-1]]
+			if string=='training':
 
-		elif string=='test':
+				inp = state.input[Nneur[g][0]:(Nneur[g][-1]-1)]
+				inpbp = state.input[Nneur[g][-1]-1]
 
-			inp = state.input_test[Nneur[g][0]:Nneur[g][-1]]
+			elif string=='test':
 
-		X = cv(inp,Basis,state)[:,:Nsteps] #+1 in there.
+				inp = state.input_test[Nneur[g][0]:(Nneur[g][-1]-1)]
+				inpbp = state.input_test[Nneur[g][-1]-1]
 
-		ming = Nneur[g][0]
-		maxg = Nneur[g][-1]
+			X = cv(inp,Basis,state)[:,:Nsteps] #+1 in there.
+			Xbp = cv(inpbp,state.basisBackProp,state)[:,:Nsteps]
+	
+			ming = Nneur[g][0]
+			maxg = Nneur[g][-1]-1
 
-		MP12[g,:] = np.dot(state.paramKer[ming*Nb:maxg*Nb],X)
+			u1 = np.dot(state.paramKer[ming*Nb:maxg*Nb],X)
+			u2 = np.dot(state.paramKer[maxg*Nb:(maxg*Nb+Nbbp)],Xbp)
+
+			MP12[g,:] = u1 + u2
+				
+		else:
+
+			if string=='training':
+
+				inp = state.input[Nneur[g][0]:Nneur[g][-1]]
+
+			elif string=='test':
+
+				inp = state.input_test[Nneur[g][0]:Nneur[g][-1]]
+
+			X = cv(inp,Basis,state)[:,:Nsteps] #+1 in there.
+		
+			ming = Nneur[g][0]
+			maxg = Nneur[g][-1]
+
+			u1 = np.dot(state.paramKer[ming*Nb:maxg*Nb],X)
+
+			MP12[g,:] = u1 
 
 	return MP12
 

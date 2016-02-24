@@ -17,9 +17,9 @@ def import_data(l_indices,path,strs,grps):
 
 		for j in grps[i]:
 
-			name = 'vecs_spks_'+strs[i]+str(j)+'_'+str(l_indices[0])+'.txt'
+			name = 'vecs_spks_'+str(l_indices[0])+'_'+str(j)+'.txt'
 
-			name_test = 'vecs_spks_'+strs[i]+str(j)+'_'+str(l_indices[1])+'.txt'
+			name_test = 'vecs_spks_'+str(l_indices[1])+'_'+str(j)+'.txt'
 
 			inputs = inputs + [list(np.loadtxt(name))]
 
