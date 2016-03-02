@@ -1,25 +1,26 @@
 from __future__ import division
-import functions as fun
+import functions as fun #import useful functions, like sigmoids, Md-calculations
 import numpy as np
 import matplotlib.pylab as plt
-import mechanisms as mech
+import mechanisms as mech #contains code to run LNLN model and produce spikes
 import random
 import math
-import optim
+import optim # contains code for fitting LNLN on spiking data
 import diff_calc as diff
 from matplotlib import gridspec
-import interface
+import interface # contains code for importing data produced by NEURON
 import pickle
 
-dataset = pickle.load(open("dataset2.p","rb"))
+dataset = pickle.load(open("dataset2.p","rb")) #importing dataset2 specificities
 
-class Synapses:
+
+class Synapses: #Used to produce artificial data.
 
 	tr_in = 3. #[ms] rise time inhibitory kernel
 	td_in = 80. #[ms] decay time inhibitory kernel
 	tr_exc = 1. #[ms] rise ' ' ' excitatory ' ' ' 
 	td_exc = 30. #same
-	N =  12#number of pre-synaptic neurons
+	N =  18#number of pre-synaptic neurons
 
 	def __init__(self,size,dt=1.,len_ker=300.):
 
@@ -27,12 +28,11 @@ class Synapses:
 		self.len_ker = len_ker #[ms] total-time over which the kernel is defined.
 		self.len_ker_st = int(len_ker/dt) #like above, but in ms.
 		self.ker = np.zeros((self.N,int(len_ker/dt)),dtype=float) #initialized at 0.
-		l = [6,7,8,0,1,2,3,4,5,9,10,11]		
-		#l = [12,13,14,15,16,17,18,19,20,21,22,23,0,1,2,3,4,5,6,7,8,9,10,11] #shuffle indices to create groups.
-		 
+		l = [0,1,2,6,7,8,12,13,14,3,4,5,9,10,11,15,16,17] #exc. syn. go in the first half. Just a way to label synapses as exc or inh and put them into groups.
+
 		for i in range(self.N): #loop over the presynaptic neurons
 
-			if i<(self.N/2): #first group (inh. and exc. thks to shuffling)
+			if i<(self.N/2): #excitatory synapses
 
 				trexc = fun.jitter(self.tr_exc) #tr_exc + noise
 				tdexc = fun.jitter(self.td_exc) #same
@@ -54,27 +54,25 @@ class Synapses:
 		
 		plt.show()
 
-class SpikingMechanism: #gather parameters for spiking.
+class SpikingMechanism: #various parameters used for producing artificial data.
 
 	dt = 1. #[ms]
-	strh = 25.
-	Ng = 2 #number of subgroups. each of them has a non-linearity.
-	non_linearity = [[0.,strh,1.,1/strh],[0.,strh,1.,1/strh]]
-	threshold = 30. #bio-inspired threshold value.
-	PSP_size = 25.# mV: Roughly std of the memb. pot. in a compartment before NL 	  
-	ASP_size = 10. # [mV] size of After-Spike-Potential (ASP)
-	ASP_time = 200. #[ms] time-constant of decay ASP
-	ASP_total = 1000. #[ms] total length of ASP
+	Ng = 3 #number of subgroups. each of them has a non-linearity.
+	non_linearity = [[1.,0.02,0.01],[0.5,0.,0.02],[1.,0.05,0.03]] #parameters of NLs
+	threshold = 2. #bio-inspired threshold value.
+	PSP_size = 1.# mV: Roughly std of the memb. pot. in a compartment before NL 	  
+	ASP_size = 0.8 # [mV] size of After-Spike-Potential (ASP)
+	ASP_time = 20. #[ms] time-constant of decay ASP
+	ASP_total = 100. #[ms] total length of ASP
 	ASP_total_st = ASP_total/dt #same but in time-steps unit.
-	delta_v = 1. #[mv]thresh. selectivity. In LNLN-model, will be one. rest will ada
+	delta_v = 0.02 #[mv]thresh. selectivity. In LNLN-model, will be one. rest will ada
 	lambda0 = 1. #[mV]firing value at threshold. 
-	in_rate = 25. #with these parameters, in_rate = 20 -> ~8Hz output
 
 class RunParameters:
 
-	total_time = dataset["total_time"] #total simulation time
-	total_time_test = dataset["total_time_test"]
-	N = dataset["N"] #number of presynaptic neurons
+	total_time = 1200000.#dataset["total_time"] #total simulation time
+	total_time_test = 40000. #dataset["total_time_test"]
+	N = 18 # dataset["N"] #number of presynaptic neurons
 	
 class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters): 
 # Neuron = synapses + spiking mechanisms + parameters.
@@ -88,13 +86,45 @@ class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters):
                         #one list per presynaptic neuron.
 		self.input_test = []
 
+		self.windows = {}
+
+		self.windows['training'	] = [[0.,200000.,10.,10.,10.,10.,10.,10.],
+									[200000.,400000.,10.,10.,10.,10.,60.,10.],
+									[400000.,600000.,10.,10.,60.,10.,10.,10.],
+									[600000.,800000.,60.,10.,10.,10.,10.,10.],
+									[800000.,1000000.,40.,10.,40.,10.,10.,10.],
+									[1000000.,1200000.,25.,10.,25.,10.,25.,10.]]
+
+		# convention: [[tstart window1,tstop window1,ex ],[],]
+		
+		self.windows['test'] = [[0.,10000.,10.,10.,10.,10.,10.,40.],
+									[10000.,20000.,60.,10.,10.,10.,10.,10.],
+									[20000.,30000.,40.,10.,40.,10.,10.,10.],
+									[30000.,40000.,25.,10.,25.,10.,25.,10.]]
+
+		self.l = [0,1,2,6,7,8,12,13,14,3,4,5,9,10,11,15,16,17]
+
 		for i in range(self.N):
 
-			SpikeTrain = fun.spike_train(self,'training') #self contains params. (e.g  in_rate)
-			SpikeTrain_test = fun.spike_train(self,'test')
+			gr = int(i/(self.N/self.Ng))
 
-			self.input.append(SpikeTrain) #append Poisson spiketrain with in_rate.
-			self.input_test.append(SpikeTrain_test)			
+			if i%((self.N/self.Ng))<(self.N/self.Ng)/2:
+
+				SpikeTrain = fun.spike_train(self,gr,'exc','training') 
+				SpikeTrain_test = fun.spike_train(self,gr,'exc','test')
+				self.input.append(SpikeTrain) 
+				self.input_test.append(SpikeTrain_test)		
+
+			else:
+
+				SpikeTrain = fun.spike_train(self,gr,'inh','training') 
+				SpikeTrain_test = fun.spike_train(self,gr,'inh','test')
+				self.input.append(SpikeTrain) 
+				self.input_test.append(SpikeTrain_test)		
+
+		self.input = self.input[::-1]
+		self.input_test = self.input_test[::-1]
+
 
 	def run(self): #generate output from input and spike mechanism.
 
@@ -102,6 +132,29 @@ class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters):
 		out,v,sub_memb = mech.SpikeGeneration(self.input,self,ctrl,'training')
 
 		self.output = out
+
+		rates = []
+
+		for i in range(20):
+
+			cnt = 0.
+
+			for st in out:
+
+				if (st>((i/20.)*self.total_time))&(st<(((i+1)/20.)*self.total_time)):
+
+					cnt = cnt + 1.
+
+			rates = rates + [cnt/(0.001*0.05*self.total_time)]
+
+		figrates = plt.figure()
+
+		axrate = figrates.add_subplot(111)
+
+		axrate.plot(rates)
+	
+		figrates.show()				
+	
 		self.membrane_potential = v
 		self.sub_memb_pot = sub_memb
 
@@ -120,8 +173,7 @@ class TwoLayerNeuron(Synapses,SpikingMechanism,RunParameters):
 		h = np.histogram(self.membrane_potential,bins=1000.)
 		plt.plot(h[1][:-1],h[0])
 		plt.show()
-		absc = np.arange(int(self.total_time/self.dt)) #absc = abscisse (French)
-		plt.plot(absc,self.membrane_potential)
+		plt.plot(self.membrane_potential)
 		plt.show()
 
 class BBPneuron(RunParameters):
@@ -166,9 +218,9 @@ class FitParameters(): # FitParameters is one component of the TwoLayerModel cla
 		self.basis_str = basis
 
 	dt = 1.  #[ms]
-	N = dataset["N"]# need to define it several times for access purposes.
-	Ng = dataset["Ng"] # number of nsub_groups
-	Nneur = dataset["Nneur"]
+	N = 18#dataset["N"]# need to define it several times for access purposes.
+	Ng = 3#dataset["Ng"] # number of nsub_groups
+	Nneur = [range(0,7),range(6,13),range(12,19)]#dataset["Nneur"]
 	N_cos_bumps = 5 #number of PSP(ker) basis functions.
 	len_cos_bumps = 300. #ms. total length of the basis functions 
 	N_knots_ASP = 5.# number of knots for natural spline for ASP (unused)
@@ -180,9 +232,8 @@ class FitParameters(): # FitParameters is one component of the TwoLayerModel cla
 
 		knots = knots + [range(-50,60,10)]
 		bnds = bnds + [[-100.,100.]]
-
-	knots_ASP = range(int(100./dt),int(600./dt),int(100/dt) ) #knots for ASP (unused)
-	bnds_ASP = [0,600./dt] # domain over which ASP defined. [timesteps]
+	knots_ASP = range(int(15/dt),int(60./dt),int(10/dt) ) #knots for ASP (unused)
+	bnds_ASP = [0,60./dt] # domain over which ASP defined. [timesteps]
 
 	basisNL = []
 	basisNLder = []
@@ -192,7 +243,7 @@ class FitParameters(): # FitParameters is one component of the TwoLayerModel cla
 
 	#basisBackProp = fun.Cst(knots_back_prop,[0,len_cos_bumps/dt],len_cos_bumps/dt)
 
-	flag = ['nope','nope']
+	flag = ['nope','nope','nope']
 
 	for i in range(Ng):
 
@@ -210,7 +261,7 @@ class FitParameters(): # FitParameters is one component of the TwoLayerModel cla
 	#basisKer = basisKer[1:,::-1]
 	basisKer = fun.CosineBasis(N_cos_bumps,len_cos_bumps,dt,a=1.7)
 	basisKer = basisKer[1:,:]
-	basisASP = fun.Tents(knots_ASP,bnds_ASP,600.) #basis for ASP (Tents not splines)
+	basisASP = fun.Tents(knots_ASP,bnds_ASP,60.) #basis for ASP (Tents not splines)
 	tol = 10**-6 #(Tol over gradient norm below which you stop optimizing)
 
 	def plot(self):
@@ -251,7 +302,7 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 		self.input = neuron.input
 		self.output = [neuron.output]
 
-		self.paramKer[-1] = -math.log(len(neuron.output)/neuron.total_time) #initialize for fit.
+		self.paramKer[-1] = -math.log(len(neuron.output)/float(neuron.total_time)) #initialize for fit.
 
 		#self.neustd = neuron.sub_memb_pot.std()
 
@@ -338,12 +389,17 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 		axker = fig6.add_subplot(111)
 		Ker = np.zeros((self.N,self.len_cos_bumps/self.dt),dtype='float')
 		Nb = self.basisKer.shape[0]
-		Ker[-1,:] = np.dot(self.paramKer[:Nb],self.basisKer)
-		Ker[0,:] = np.dot(self.paramKer[(self.N-1)*Nb:self.N*Nb],self.basisKer)
+
+		for i in range(self.N):
+
+			Ker[i,:] = np.dot(self.paramKer[i*Nb:(i+1)*Nb],self.basisKer)
+	
 		#std = neuron.sub_memb_pot.std()
-		axker.plot(Ker[-1,:])
-		axker.plot(Ker[0,:])
-		subsa = 1#(self.dt/neuron.dt)
+
+		for i in range(self.N):
+
+			axker.plot(Ker[i,:],color='b')
+
 		#axker.plot(neuron.PSP_size*mostd*neuron.synapses.ker[-1,::subsa])
 		#axker.plot(neuron.PSP_size*mostd*neuron.synapses.ker[0,::subsa])
 		axker.set_xlabel("time (ms)")
@@ -352,17 +408,38 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 		fig7 = plt.figure()
 		axlls = fig7.add_subplot(111) 
 		axlls.plot(self.lls,'bo')
+		axlls.set_xlabel('iteration number')
+		axlls.set_ylabel('log-likelihood (bits/spikes)')
 		fig7.show()
 
 		fig8 = plt.figure()
 		axmd = fig8.add_subplot(gs[0,0])
-		axmd.plot(self.Mds,'bo')
-		axmd.set_xlabel("Block Optimization number")
-		axmd.set_ylabel("Md - percentage of predicted spikes")
+
+		ticks = ['Poiss.','PSP (GLM)']
+
+		for i in range(len(self.Mds)-2):
+
+			if i%2==0:
+
+				ticks = ticks + ['NL']
+
+			else:
+
+				ticks = ticks + ['PSP']
+
+		axmd.bar(np.arange(len(self.Mds)),self.Mds,width=0.5)
+
+		axmd.set_xticks(np.arange(len(self.Mds))+0.25)
+		axmd.set_xticklabels(ticks)
+
+		axmd.set_ylabel("Md - percentage of predicted spikes on test set.")
 		
 		axsw = fig8.add_subplot(gs[1,0])
-		axsw.plot(self.switches,'bo')
-		axsw.set_xlabel("Block Optimization number")
+		axsw.bar(np.arange(len(self.switches)),self.switches,width=0.5)
+
+		axmd.set_xticks(np.arange(len(self.Mds)))
+		axmd.set_xticklabels(ticks)
+
 		axsw.set_ylabel("Log-likelihood (bits/spike)")
 		fig8.show()
 
@@ -372,4 +449,5 @@ class TwoLayerModel(FitParameters,RunParameters): #model object.
 		np.savetxt('paramker.txt',self.paramKer)
 		np.savetxt('knots.txt',self.knots)
 		np.savetxt('bnds.txt',self.bnds)
+
 

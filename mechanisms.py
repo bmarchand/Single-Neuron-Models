@@ -58,17 +58,11 @@ def SpikeGeneration(inp,neuron,control,string):#neuron contains input spike-trai
 			plt.plot(fun.sigmoid(neuron.non_linearity[g],MP_part))
 			plt.show()
 		
-			h = np.histogram(MP_part,bins=1000.,range=[-80.,80.])
-			h_after = np.histogram(fun.sigmoid(neuron.non_linearity[g],MP_part),bins=1000.,range=[-80.,80.])
+			h = np.histogram(MP_part,bins=1000.,range=[-2.,2.])
+			h_after = np.histogram(fun.sigmoid(neuron.non_linearity[g],MP_part),bins=1000.,range=[-2.,2.])
 
 			plt.plot(h[1][:-1],h[0])
 			plt.plot(h_after[1][:-1],h_after[0])
-			plt.show()
-
-			x = np.arange(-80.,80.,0.1)
-
-			plt.plot(x,fun.sigmoid(neuron.non_linearity[g],x))
-			plt.plot(x,x)
 			plt.show()
 
 		MP = MP + fun.sigmoid(neuron.non_linearity[g],MP_part) 

@@ -109,7 +109,7 @@ class State(main.TwoLayerModel,main.FitParameters,main.RunParameters):
 			NL = diff.applyNL(NL,np.arange(new_bnds[0],new_bnds[1],dv),self.bnds[g]) #
 			self.bnds[g] = new_bnds
 
-			self.knots[g] = [mp_sp_min+((i+1)/5.)*(mp_sp_max-mp_sp_min) for i in range(4)]
+			self.knots[g] = [mp_sp_min+((i+1)/10.)*(mp_sp_max-mp_sp_min) for i in range(9)]
 
 			tots = 100000.
 
@@ -137,7 +137,7 @@ def BlockCoordinateAscent(Model):
 		init_tot()
 		
 		try:
-			while diff_ker > 15.:
+			while diff_ker > 4.:
 
 				init_ker()
 				state.iter_ker()

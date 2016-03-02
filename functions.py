@@ -40,35 +40,40 @@ def jitter(r,per=0.1): #add 10% of noise to r.
 
 	return r*(1+per*2*(random.random()-0.5))
 
-def spike_train(neuron,string): #generate Poisson spike train.
+def spike_train(neuron,gr,syn,string): #generate Poisson spike train.
 
-	train = []
+	spike_train = [0.]
 
-	if string=='training':
+	dt = neuron.dt
 
-		T = neuron.total_time
+	for w in neuron.windows[string]:
 
-	elif string=='test':
+		tstart = w[0]
+		tstop = w[1]
 
-		T = neuron.total_time_test
+		cursor = 0.
 
-	while np.sum(train) < T:
+		while cursor < (tstop - tstart):
 
-		tmp_t = np.random.exponential(scale=1000./jitter(neuron.in_rate,per=0.5)) #ISI
+			if syn=='exc':
+				cursor = cursor + np.random.exponential(1000./w[2+2*gr])
 
-		tmp_t = neuron.dt*int(tmp_t/neuron.dt)
+			elif syn=='inh':
+				cursor = cursor + np.random.exponential(1000./w[3+2*gr])
 
-		train.append(tmp_t)
+			if ((tstart + cursor) < tstop):
 
-	train = np.cumsum(train[:-1]) 
+				new_t = np.around((tstart + cursor)/dt)*dt
 
-	train = list(train)
+				if new_t>(spike_train[-1]+dt):
 
-	return train
-		
+					spike_train = spike_train + [new_t]
+
+	return spike_train[1:]
+
 def sigmoid(l,x):
 
-	y = l[0] + l[1]/(l[2]+np.exp(-l[3]*x))
+	y = l[0]/(1.+np.exp(-(x-l[1])/l[2]))
 
 	return y
 
@@ -334,7 +339,7 @@ def SimMeas(out1,out2,model,delta):
 	for i in range(100):
 
 		outt1 = out1[i]
-		outt2 = out2[0]
+		outt2 = out2[i]
 
 		outt1 = np.array(outt1)
 		outt1 = np.floor(outt1/model.dt)
